@@ -1,0 +1,658 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Butler — Task Manager</title>
+    <style>
+        /* ==========================================================================
+           CSS VARIABLES & THEMING
+           Aesthetic: Daybook / Ledger Planner
+           ========================================================================== */
+        :root {
+            /* Colors */
+            --paper-bg: #f4f1ea;        /* Off-white paper background */
+            --card-bg: #fcfbfa;         /* Slightly brighter for active cards */
+            --ink-navy: #1b263b;        /* Dark navy ink for primary text */
+            --ink-light: #415a77;       /* Lighter navy for secondary text */
+            --stamp-amber: #cf7e00;     /* Warm amber/gold for pending/alerts */
+            --stamp-green: #7da27e;     /* Sage green for completed states */
+            --border-color: #d8d3c5;    /* Subtle ledger line color */
+            --error-red: #9b2226;       /* Deep red for inline errors */
+            
+            /* Typography */
+            --font-serif: 'Georgia', 'Times New Roman', serif;
+            --font-sans: 'Helvetica Neue', 'Arial', sans-serif;
+            --font-mono: 'Courier New', 'Courier', monospace;
+        }
+
+        /* ==========================================================================
+           RESET & BASE STYLES
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--paper-bg);
+            color: var(--ink-navy);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            padding: 1.5rem 1rem 3rem 1rem;
+            max-width: 600px; /* Mobile-first, but capped on larger screens */
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            font-family: var(--font-serif);
+            font-weight: normal;
+            color: var(--ink-navy);
+        }
+
+        /* ==========================================================================
+           COMPONENTS
+           ========================================================================== */
+        
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--ink-navy);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.25rem;
+        }
+
+        .date-display {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--ink-light);
+            letter-spacing: 0.5px;
+        }
+
+        /* Cards (Daybook Sections) */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 2px 2px 0px rgba(27, 38, 59, 0.05); /* Very subtle depth */
+        }
+
+        .card-header {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Forms & Inputs */
+        textarea, input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--ink-light);
+            color: var(--ink-navy);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            padding: 0.5rem 0;
+            margin-bottom: 1rem;
+            outline: none;
+            resize: vertical;
+        }
+
+        textarea {
+            min-height: 80px;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            background: var(--paper-bg);
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--ink-navy);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #a0a0a0;
+            font-style: italic;
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--ink-navy);
+            color: var(--paper-bg);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            font-family: var(--font-sans);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+            transform: translateY(1px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--ink-navy);
+            border: 1px solid var(--ink-navy);
+        }
+
+        .btn-small {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        /* Rubber Stamps */
+        .stamp {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border: 2px solid;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .stamp-amber {
+            color: var(--stamp-amber);
+            border-color: var(--stamp-amber);
+            transform: rotate(-3deg);
+        }
+
+        .stamp-green {
+            color: var(--stamp-green);
+            border-color: var(--stamp-green);
+            transform: rotate(2deg);
+        }
+
+        /* Task List */
+        .task-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+            gap: 1rem;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-desc {
+            font-size: 1.05rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .task-desc.completed {
+            text-decoration: line-through;
+            color: var(--ink-light);
+        }
+
+        .task-meta {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--ink-light);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .task-action {
+            flex-shrink: 0;
+            padding-top: 0.2rem;
+        }
+
+        .add-task-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .add-task-row input {
+            margin-bottom: 0;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem;
+            background: var(--paper-bg);
+        }
+
+        /* Helpers & States */
+        .error-msg {
+            color: var(--error-red);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            font-family: var(--font-sans);
+            display: none;
+        }
+
+        .info-msg {
+            font-style: italic;
+            color: var(--ink-light);
+        }
+
+        /* Review Section Callbacks */
+        .similar-day-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--paper-bg);
+            border-left: 3px solid var(--stamp-amber);
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .similar-day-box strong {
+            font-family: var(--font-serif);
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Loading state util */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <h1>ACORN</h1>
+        <div class="date-display" id="date-display">Loading date...</div>
+    </header>
+
+    <!-- Morning Check-in Card -->
+    <section class="card" id="checkin-card">
+        <h2 class="card-header">Morning Check-in</h2>
+        <div id="checkin-content">
+            <p class="info-msg">Fetching your daily briefing...</p>
+        </div>
+        <div class="error-msg" id="checkin-error"></div>
+    </section>
+
+    <!-- Today's Tasks Card -->
+    <section class="card" id="tasks-card">
+        <h2 class="card-header">Today's Ledger</h2>
+        
+        <ul class="task-list" id="task-list">
+            <!-- Tasks injected via JS -->
+            <p class="info-msg">Loading tasks...</p>
+        </ul>
+
+        <div class="add-task-row">
+            <input type="text" id="new-task-input" placeholder="Jot down a new task...">
+            <button class="btn btn-outline" onclick="handleAddTask()">Add</button>
+        </div>
+        <div class="error-msg" id="task-error"></div>
+    </section>
+
+    <!-- Evening Review Card -->
+    <section class="card" id="review-card">
+        <h2 class="card-header">Evening Review</h2>
+        <div id="review-form">
+            <textarea id="review-summary" placeholder="How did today go? Reflect on your progress..."></textarea>
+            <input type="text" id="review-mood" placeholder="Mood note (e.g., Focused, Tired, Inspired)">
+            <button class="btn" id="btn-submit-review" onclick="handleSubmitReview()">Save Entry</button>
+        </div>
+        <div class="error-msg" id="review-error"></div>
+
+        <!-- Hidden until review returns a similar day -->
+        <div class="similar-day-box" id="similar-day-box">
+            <strong>Echoes from the Past:</strong>
+            <span id="similar-day-date" style="font-family: var(--font-mono); font-size: 0.8rem;"></span>
+            <p id="similar-day-summary" style="margin-top: 0.5rem;"></p>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+         APPLICATION LOGIC (JavaScript)
+         ========================================================================== -->
+    <script>
+        // --- CONFIGURATION ---
+        // TODO: Replace with your actual Express API Base URL
+        const API_BASE = "http://localhost:3000"; 
+
+        // --- GLOBAL STATE ---
+        let globalGoals = []; // To map goal_id to goal titles
+        let todayTasks = [];
+
+        // --- UTILITIES ---
+        
+        // Formats today's date like "SATURDAY, JULY 18, 2026"
+        function setDisplayDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date().toLocaleDateString('en-US', options).toUpperCase();
+            document.getElementById('date-display').textContent = today;
+        }
+
+        // Show inline errors
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                el.textContent = message;
+                el.style.display = 'block';
+                // Auto hide after 5 seconds
+                setTimeout(() => el.style.display = 'none', 5000);
+            }
+        }
+
+        // Helper for fetch to handle JSON and throw on non-ok status
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(options.headers || {})
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                throw error;
+            }
+        }
+
+        // --- INITIALIZATION & FETCHES ---
+
+        async function initApp() {
+            setDisplayDate();
+            
+            // Step 1: Await goal structure first as the foundation of the ledger
+            await fetchGoals();
+            
+            // Step 2: Now run check-in and task fetches concurrently
+            await Promise.all([
+                fetchCheckinStatus(),
+                fetchTodayTasks()
+            ]);
+        }
+
+        // GET /api/goals
+        async function fetchGoals() {
+            try {
+                const data = await apiCall('/api/goals');
+                // Support both structured { goals: [...] } objects and plain arrays
+                globalGoals = data.goals || (Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.warn("Could not retrieve goals. Rendering tasks as unassigned.", err);
+                globalGoals = [];
+            }
+        }
+
+        // GET /api/checkin
+        async function fetchCheckinStatus() {
+            const container = document.getElementById('checkin-content');
+            try {
+                const data = await apiCall('/api/checkin');
+
+                if (data.alreadyCheckedIn) {
+                    container.innerHTML = `<p class="info-msg" style="color: var(--stamp-green); font-weight: bold;">✓ Morning briefing logged.</p>`;
+                } else {
+                    const question = data.question || "What is your main focus for today?";
+                    container.innerHTML = `
+                        <p style="margin-bottom: 1rem; font-family: var(--font-serif); font-size: 1.1rem;">"${question}"</p>
+                        <textarea id="checkin-response" placeholder="Draft your plan here..."></textarea>
+                        <button class="btn" onclick="submitCheckin()">Commit to Ledger</button>
+                    `;
+                }
+            } catch (err) {
+                container.innerHTML = `<p class="info-msg">Failed to connect to Acorn. Are you offline?</p>`;
+            }
+        }
+
+        // GET /api/tasks/today
+        async function fetchTodayTasks() {
+            const container = document.getElementById('task-list');
+            try {
+                const data = await apiCall('/api/tasks/today');
+                todayTasks = data.tasks || [];
+                renderTasks();
+            } catch (err) {
+                container.innerHTML = `<p class="info-msg" style="color: var(--error-red);">Could not retrieve today's ledger.</p>`;
+            }
+        }
+
+        // --- ACTION HANDLERS ---
+
+        // POST /api/checkin
+        async function submitCheckin() {
+            const responseText = document.getElementById('checkin-response').value.trim();
+            if (!responseText) {
+                showError('checkin-error', 'Please write your plan before committing.');
+                return;
+            }
+
+            const card = document.getElementById('checkin-card');
+            card.classList.add('loading');
+
+            try {
+                const data = await apiCall('/api/checkin', {
+                    method: 'POST',
+                    body: JSON.stringify({ responseText })
+                });
+
+                if (data.ok) {
+                    // Update checkin UI
+                    document.getElementById('checkin-content').innerHTML = `
+                        <p class="info-msg" style="color: var(--stamp-green); font-weight: bold;">✓ Morning briefing logged.</p>
+                    `;
+                    // If backend returns new tasks generated from the plan, update the list
+                    if (data.tasks) {
+                        todayTasks = data.tasks;
+                        renderTasks();
+                    } else {
+                        // Otherwise just re-fetch tasks to be safe
+                        fetchTodayTasks();
+                    }
+                }
+            } catch (err) {
+                showError('checkin-error', 'Failed to log check-in. Try again.');
+            } finally {
+                card.classList.remove('loading');
+            }
+        }
+
+        // POST /api/tasks
+        async function handleAddTask() {
+            const inputEl = document.getElementById('new-task-input');
+            const description = inputEl.value.trim();
+            
+            if (!description) return;
+
+            inputEl.disabled = true;
+
+            try {
+                const data = await apiCall('/api/tasks', {
+                    method: 'POST',
+                    body: JSON.stringify({ description })
+                });
+
+                if (data.ok && data.task) {
+                    todayTasks.push(data.task);
+                    renderTasks();
+                    inputEl.value = ''; // clear input
+                }
+            } catch (err) {
+                showError('task-error', 'Could not add task. Is the API running?');
+            } finally {
+                inputEl.disabled = false;
+                inputEl.focus();
+            }
+        }
+
+        // PATCH /api/tasks/:id/complete
+        async function completeTask(taskId) {
+            try {
+                const data = await apiCall(`/api/tasks/${taskId}/complete`, {
+                    method: 'PATCH'
+                });
+                
+                // Optimistically update the UI regardless of full return payload, 
+                // assuming 200 OK means success.
+                const taskIndex = todayTasks.findIndex(t => t.id === taskId);
+                if (taskIndex > -1) {
+                    todayTasks[taskIndex].completed = true;
+                    renderTasks();
+                }
+
+            } catch (err) {
+                // Per requirements: alert popup is fine for this specific failure
+                alert('Butler encountered an error marking this task complete. Please try again.');
+            }
+        }
+
+        // POST /api/review
+        async function handleSubmitReview() {
+            const summary = document.getElementById('review-summary').value.trim();
+            const mood = document.getElementById('review-mood').value.trim();
+            
+            if (!summary && !mood) {
+                showError('review-error', 'Please enter some reflection notes before saving.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-submit-review');
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+
+            try {
+                const data = await apiCall('/api/review', {
+                    method: 'POST',
+                    body: JSON.stringify({ eveningSummary: summary, moodNote: mood })
+                });
+
+                // Clear form and show success state
+                document.getElementById('review-form').innerHTML = `
+                    <p class="info-msg" style="color: var(--stamp-green); font-weight: bold; margin-bottom: 1rem;">
+                        ✓ Ledger closed. ${data.completedCount || 0} / ${data.totalCount || 0} tasks completed today.
+                    </p>
+                `;
+
+                // Handle the Similar Day callback
+                if (data.similarDay) {
+                    const simBox = document.getElementById('similar-day-box');
+                    document.getElementById('similar-day-date').textContent = data.similarDay.date;
+                    document.getElementById('similar-day-summary').textContent = `"${data.similarDay.summary}"`;
+                    simBox.style.display = 'block';
+                }
+
+            } catch (err) {
+                showError('review-error', 'Could not save evening review.');
+                btn.textContent = 'Save Entry';
+                btn.disabled = false;
+            }
+        }
+
+        // --- RENDER LOGIC ---
+        
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            
+            if (todayTasks.length === 0) {
+                container.innerHTML = `<p class="info-msg">No tasks logged for today yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = ''; // Clear current list
+
+            todayTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+
+                // Look up goal name, default to unassigned
+                let goalName = "UNASSIGNED";
+                if (task.goal_id && globalGoals.length > 0) {
+                    const foundGoal = globalGoals.find(g => String(g.id) === String(task.goal_id));
+                    if (foundGoal) goalName = foundGoal.title.toUpperCase();
+                }
+
+                // Determine styling based on completion
+                const descClass = task.completed ? 'task-desc completed' : 'task-desc';
+                const stampHTML = task.completed 
+                    ? `<span class="stamp stamp-green">COMPLETED</span>`
+                    : `<span class="stamp stamp-amber">PENDING</span>`;
+
+                // Build action button (only show 'Yes' if not completed)
+                const actionHTML = task.completed 
+                    ? `` 
+                    : `<button class="btn btn-outline btn-small" onclick="completeTask('${task.id}')">Yes</button>`;
+
+                li.innerHTML = `
+                    <div class="task-content">
+                        <div class="${descClass}">${escapeHTML(task.description)}</div>
+                        <div class="task-meta">
+                            <span>[${escapeHTML(goalName)}]</span>
+                            ${stampHTML}
+                        </div>
+                    </div>
+                    <div class="task-action">
+                        ${actionHTML}
+                    </div>
+                `;
+                container.appendChild(li);
+            });
+        }
+
+        // Simple HTML escaper to prevent XSS if you inject weird chars in tasks
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+        // Boot up!
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        // Allow 'Enter' key to submit new task
+        document.getElementById('new-task-input')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleAddTask();
+            }
+        });
+
+    </script>
+</body>
+</html>
+
+
