@@ -6,9 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.json({ status: "Butler backend is running" });
-});
+app.use(express.static("public"));
 
 app.use("/api", require("./routes/butler"));
 
