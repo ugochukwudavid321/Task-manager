@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./gen-vapid");
 const express = require("express");
 const cors = require("cors");
 
