@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Butler — Task Manager</title>
+    <title>ACORN</title>
     <style>
         /* ==========================================================================
            CSS VARIABLES & THEMING
@@ -297,7 +297,19 @@
         </div>
         <div class="error-msg" id="checkin-error"></div>
     </section>
-
+<!-- Goals Card -->
+<section class="card" id="goals-card">
+    <h2 class="card-header">Your Goals</h2>
+    <ul class="task-list" id="goals-list">
+        <p class="info-msg">Loading goals...</p>
+    </ul>
+    <div class="add-task-row">
+        <input type="text" id="new-goal-title" placeholder="New goal title...">
+        <input type="text" id="new-goal-desc" placeholder="Description (optional)...">
+        <button class="btn btn-outline" onclick="handleAddGoal()">Add</button>
+    </div>
+    <div class="error-msg" id="goal-error"></div>
+</section>
     <!-- Today's Tasks Card -->
     <section class="card" id="tasks-card">
         <h2 class="card-header">Today's Ledger</h2>
@@ -338,7 +350,7 @@
     <script>
         // --- CONFIGURATION ---
         // TODO: Replace with your actual Express API Base URL
-        const API_BASE = " "; 
+        const API_BASE = ""; 
 
         // --- GLOBAL STATE ---
         let globalGoals = []; // To map goal_id to goal titles
@@ -402,16 +414,72 @@
         }
 
         // GET /api/goals
-        async function fetchGoals() {
-            try {
-                const data = await apiCall('/api/goals');
-                // Support both structured { goals: [...] } objects and plain arrays
-                globalGoals = data.goals || (Array.isArray(data) ? data : []);
-            } catch (err) {
-                console.warn("Could not retrieve goals. Rendering tasks as unassigned.", err);
-                globalGoals = [];
-            }
+        // Replace the existing fetchGoals function with this version — it now renders too
+async function fetchGoals() {
+    const container = document.getElementById('goals-list');
+    try {
+        const data = await apiCall('/api/goals');
+        globalGoals = data.goals || (Array.isArray(data) ? data : []);
+        renderGoals();
+    } catch (err) {
+        console.warn("Could not retrieve goals.", err);
+        globalGoals = [];
+        if (container) container.innerHTML = `<p class="info-msg" style="color: var(--error-red);">Could not load goals.</p>`;
+    }
+}
+
+function renderGoals() {
+    const container = document.getElementById('goals-list');
+    if (!container) return;
+
+    if (globalGoals.length === 0) {
+        container.innerHTML = `<p class="info-msg">No active goals yet.</p>`;
+        return;
+    }
+
+    container.innerHTML = '';
+    globalGoals.forEach(goal => {
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
+            <div class="task-content">
+                <div class="task-desc">${escapeHTML(goal.title)}</div>
+                ${goal.description ? `<div class="task-meta">${escapeHTML(goal.description)}</div>` : ''}
+            </div>
+        `;
+        container.appendChild(li);
+    });
+}
+
+async function handleAddGoal() {
+    const titleEl = document.getElementById('new-goal-title');
+    const descEl = document.getElementById('new-goal-desc');
+    const title = titleEl.value.trim();
+    const description = descEl.value.trim();
+
+    if (!title) return;
+
+    titleEl.disabled = true;
+
+    try {
+        const data = await apiCall('/api/goals', {
+            method: 'POST',
+            body: JSON.stringify({ title, description })
+        });
+
+        if (data.ok && data.goal) {
+            globalGoals.push(data.goal);
+            renderGoals();
+            titleEl.value = '';
+            descEl.value = '';
         }
+    } catch (err) {
+        showError('goal-error', 'Could not add goal.');
+    } finally {
+        titleEl.disabled = false;
+        titleEl.focus();
+    }
+}
 
         // GET /api/checkin
         async function fetchCheckinStatus() {

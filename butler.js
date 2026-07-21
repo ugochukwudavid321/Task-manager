@@ -29,12 +29,13 @@ async function getOrCreateTodayLog(userId) {
     `daily_logs?select=*&user_id=eq.${userId}&log_date=eq.${today()}`
   );
   if (logs.length) return logs[0];
-  const created = await sb.post("daily_logs", {
-    user_id: userId,
-    log_date: today(),
-    intake_status: "pending",
-  });
-  return created[0];
+
+  const upserted = await sb.upsert(
+    "daily_logs",
+    { user_id: userId, log_date: today(), intake_status: "pending" },
+    "user_id,log_date"
+  );
+  return upserted[0];
 }
 
 // GET /api/goals - list active goals
@@ -112,6 +113,29 @@ router.get("/tasks/today", async (req, res) => {
     const log = await getOrCreateTodayLog(user.id);
     const tasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
     res.json({ log, tasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// POST /api/goals  { title, description }  - add a new goal
+router.post("/goals", async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "title is required" });
+    }
+
+    const user = await getOrCreateUser();
+
+    const inserted = await sb.post("goals", {
+      user_id: user.id,
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      status: "active",
+    });
+
+    res.json({ ok: true, goal: inserted[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
