@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const { sb } = require("../lib/supabase");
+const { sb } = require("./supabase");
 const {
   generateCheckinQuestion,
   parseTasksWithGoals,
   categorizeSingleTask,
   getEmbedding,
   cosineSimilarity,
-} = require("../lib/gemini");
+} = require("./gemini");
 
 function today() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
