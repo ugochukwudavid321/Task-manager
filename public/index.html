@@ -401,17 +401,20 @@
         // --- INITIALIZATION & FETCHES ---
 
         async function initApp() {
-            setDisplayDate();
-            
-            // Step 1: Await goal structure first as the foundation of the ledger
-            await fetchGoals();
-            
-            // Step 2: Now run check-in and task fetches concurrently
-            await Promise.all([
-                fetchCheckinStatus(),
-                fetchTodayTasks()
-            ]);
-        }
+    setDisplayDate();
+    
+    // Step 1: Await goal structure first as the foundation of the ledger
+    await fetchGoals();
+    
+    // Step 2: Now run check-in and task fetches concurrently
+    await Promise.all([
+        fetchCheckinStatus(),
+        fetchTodayTasks()
+    ]);
+
+    // Step 3: Set up push notifications (asks permission, subscribes)
+    setupPushNotifications();
+}
 
         // GET /api/goals
         // Replace the existing fetchGoals function with this version — it now renders too
@@ -711,6 +714,47 @@ async function handleAddGoal() {
 
         // Boot up!
         document.addEventListener('DOMContentLoaded', initApp);
+        async function setupPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push notifications not supported on this browser.');
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('Notification permission not granted.');
+            return;
+        }
+
+        // VAPID public key — same value as VAPID_PUBLIC_KEY in Render's env vars
+        const VAPID_PUBLIC_KEY = "BF0sLI059UMlWSWOOC8qEfRoXcK2zeZRDi54PR4F2GuMT101-Kva_djSew8CJP76Ukn5IT9htYmi74kCQyZepc8";
+
+        const existingSub = await registration.pushManager.getSubscription();
+        const subscription = existingSub || await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        await apiCall('/api/push/subscribe', {
+            method: 'POST',
+            body: JSON.stringify({ subscription: subscription.toJSON() })
+        });
+
+        console.log('Push subscription saved.');
+    } catch (err) {
+        console.error('Push setup failed:', err);
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
 
         // Allow 'Enter' key to submit new task
         document.getElementById('new-task-input')?.addEventListener('keypress', function(e) {

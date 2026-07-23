@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { sb } = require("./supabase");
+const { sendPushNotification } = require("./push");
 const {
+  callGemini,
   generateCheckinQuestion,
   parseTasksWithGoals,
   categorizeSingleTask,
@@ -236,3 +238,93 @@ router.post("/review", async (req, res) => {
 });
 
 module.exports = router;
+// POST /api/push/subscribe  { subscription }
+router.post("/push/subscribe", async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ error: "Valid subscription object is required" });
+    }
+
+    const user = await getOrCreateUser();
+
+    await sb.upsert(
+      "push_subscriptions",
+      {
+        user_id: user.id,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      },
+      "endpoint"
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// GET /api/notifications/check-due?secret=YOUR_SECRET
+// Meant to be called by an external cron on a schedule, not by the frontend.
+router.get("/notifications/check-due", async (req, res) => {
+  try {
+    if (req.query.secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const user = await getOrCreateUser();
+    const todayStr = today();
+
+    // Tasks due today or earlier, not completed, not reminded in the last 6 hours
+    const dueTasks = await sb.get(
+      `tasks?select=*&completed=eq.false&due_date=lte.${todayStr}&due_date=not.is.null`
+    );
+
+    const subs = await sb.get(`push_subscriptions?select=*&user_id=eq.${user.id}`);
+    if (!subs.length) {
+      return res.json({ ok: true, sent: 0, reason: "no subscriptions" });
+    }
+
+    let sentCount = 0;
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+
+    for (const task of dueTasks) {
+      if (task.last_reminded_at && task.last_reminded_at > sixHoursAgo) continue;
+
+      const prompt =
+        `Write a short, friendly one-sentence phone notification reminding the user about this task: ` +
+        `"${task.description}" (scope: ${task.scope}, due: ${task.due_date}). ` +
+        `Max 15 words, no preamble, just the reminder text.`;
+
+      let body;
+      try {
+        body = await callGemini(prompt);
+      } catch (e) {
+        body = `Reminder: ${task.description}`;
+      }
+
+      for (const sub of subs) {
+        const result = await sendPushNotification(sub, {
+          title: "Acorn Reminder",
+          body,
+          url: "/",
+        });
+        if (result.ok) sentCount++;
+        if (result.expired) {
+          await sb.get(`push_subscriptions?id=eq.${sub.id}`); // no-op guard
+          // Could delete expired subs here if desired
+        }
+      }
+
+      await sb.patch(`tasks?id=eq.${task.id}`, {
+        last_reminded_at: new Date().toISOString(),
+      });
+    }
+
+    res.json({ ok: true, sent: sentCount, tasksChecked: dueTasks.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
