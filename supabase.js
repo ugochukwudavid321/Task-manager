@@ -59,5 +59,19 @@ const sb = {
   patch: (path, body) => sbRequest("PATCH", path, { body }),
   upsert: (path, body, onConflict) => sbUpsert(path, body, onConflict),
 };
+delete: (path) => sbRequest("DELETE", path, { returnRepresentation: false }),
 
 module.exports = { sb };
+// Verifies a user's access token and returns their auth user object
+async function getUserFromToken(token) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) return null;
+  return res.json(); // { id, email, ... }
+}
+
+module.exports = { sb, getUserFromToken };

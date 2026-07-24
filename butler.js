@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { sb } = require("./supabase");
+const { requireAuth } = require("./auth");
 const { sendPushNotification } = require("./push");
 const {
   callGemini,
@@ -15,10 +16,11 @@ function today() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-async function getOrCreateUser() {
-  const users = await sb.get("users?select=*&limit=1");
+async function getOrCreateUserProfile(userId, email) {
+  const users = await sb.get(`users?select=*&id=eq.${userId}`);
   if (users.length) return users[0];
-  const created = await sb.post("users", { name: "David" });
+  const fallbackName = email ? email.split("@")[0] : "User";
+  const created = await sb.post("users", { id: userId, name: fallbackName });
   return created[0];
 }
 
@@ -40,12 +42,115 @@ async function getOrCreateTodayLog(userId) {
   return upserted[0];
 }
 
+// ==========================================================================
+// CRON ROUTE — defined BEFORE requireAuth so it stays reachable via secret,
+// not a user session token.
+// ==========================================================================
+
+// GET /api/notifications/check-due?secret=YOUR_SECRET
+router.get("/notifications/check-due", async (req, res) => {
+  try {
+    if (req.query.secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const todayStr = today();
+
+    // Due tasks across ALL users, with owning user_id embedded via daily_logs
+    const dueTasks = await sb.get(
+      `tasks?select=*,daily_logs(user_id)&completed=eq.false&due_date=lte.${todayStr}&due_date=not.is.null`
+    );
+
+    if (!dueTasks.length) {
+      return res.json({ ok: true, sent: 0, tasksChecked: 0 });
+    }
+
+    // Group due tasks by owning user
+    const tasksByUser = {};
+    for (const task of dueTasks) {
+      const uid = task.daily_logs?.user_id;
+      if (!uid) continue;
+      if (!tasksByUser[uid]) tasksByUser[uid] = [];
+      tasksByUser[uid].push(task);
+    }
+
+    let sentCount = 0;
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+
+    for (const userId of Object.keys(tasksByUser)) {
+      const subs = await sb.get(`push_subscriptions?select=*&user_id=eq.${userId}`);
+      if (!subs.length) continue;
+
+      for (const task of tasksByUser[userId]) {
+        if (task.last_reminded_at && task.last_reminded_at > sixHoursAgo) continue;
+
+        const prompt =
+          `Write a short, friendly one-sentence phone notification reminding the user about this task: ` +
+          `"${task.description}" (scope: ${task.scope}, due: ${task.due_date}). ` +
+          `Max 15 words, no preamble, just the reminder text.`;
+
+        let body;
+        try {
+          body = await callGemini(prompt);
+        } catch (e) {
+          body = `Reminder: ${task.description}`;
+        }
+
+        for (const sub of subs) {
+          const result = await sendPushNotification(sub, {
+            title: "Acorn Reminder",
+            body,
+            url: "/",
+          });
+          if (result.ok) sentCount++;
+          // Could delete expired subs here if desired (result.expired)
+        }
+
+        await sb.patch(`tasks?id=eq.${task.id}`, {
+          last_reminded_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    res.json({ ok: true, sent: sentCount, tasksChecked: dueTasks.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================================================
+// Everything below requires a valid signed-in user
+// ==========================================================================
+router.use(requireAuth);
+
 // GET /api/goals - list active goals
 router.get("/goals", async (req, res) => {
   try {
-    const user = await getOrCreateUser();
-    const goals = await getActiveGoals(user.id);
+    const goals = await getActiveGoals(req.userId);
     res.json({ goals });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/goals  { title, description }
+router.post("/goals", async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "title is required" });
+    }
+
+    const inserted = await sb.post("goals", {
+      user_id: req.userId,
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      status: "active",
+    });
+
+    res.json({ ok: true, goal: inserted[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -55,15 +160,15 @@ router.get("/goals", async (req, res) => {
 // GET /api/checkin - morning question + today's status
 router.get("/checkin", async (req, res) => {
   try {
-    const user = await getOrCreateUser();
-    const goals = await getActiveGoals(user.id);
-    const log = await getOrCreateTodayLog(user.id);
+    const profile = await getOrCreateUserProfile(req.userId, req.userEmail);
+    const goals = await getActiveGoals(req.userId);
+    const log = await getOrCreateTodayLog(req.userId);
 
     if (log.intake_status === "completed") {
       return res.json({ alreadyCheckedIn: true, log });
     }
 
-    const question = await generateCheckinQuestion(user.name, goals);
+    const question = await generateCheckinQuestion(profile.name, goals);
     res.json({ alreadyCheckedIn: false, question, goals, logId: log.id });
   } catch (err) {
     console.error(err);
@@ -71,7 +176,7 @@ router.get("/checkin", async (req, res) => {
   }
 });
 
-// POST /api/checkin  { responseText }  - submit morning plan
+// POST /api/checkin  { responseText }
 router.post("/checkin", async (req, res) => {
   try {
     const { responseText } = req.body;
@@ -79,9 +184,8 @@ router.post("/checkin", async (req, res) => {
       return res.status(400).json({ error: "responseText is required" });
     }
 
-    const user = await getOrCreateUser();
-    const goals = await getActiveGoals(user.id);
-    const log = await getOrCreateTodayLog(user.id);
+    const goals = await getActiveGoals(req.userId);
+    const log = await getOrCreateTodayLog(req.userId);
 
     const tasks = await parseTasksWithGoals(responseText, goals);
 
@@ -111,8 +215,7 @@ router.post("/checkin", async (req, res) => {
 // GET /api/tasks/today
 router.get("/tasks/today", async (req, res) => {
   try {
-    const user = await getOrCreateUser();
-    const log = await getOrCreateTodayLog(user.id);
+    const log = await getOrCreateTodayLog(req.userId);
     const tasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
     res.json({ log, tasks });
   } catch (err) {
@@ -120,31 +223,8 @@ router.get("/tasks/today", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// POST /api/goals  { title, description }  - add a new goal
-router.post("/goals", async (req, res) => {
-  try {
-    const { title, description } = req.body;
-    if (!title || !title.trim()) {
-      return res.status(400).json({ error: "title is required" });
-    }
 
-    const user = await getOrCreateUser();
-
-    const inserted = await sb.post("goals", {
-      user_id: user.id,
-      title: title.trim(),
-      description: description ? description.trim() : null,
-      status: "active",
-    });
-
-    res.json({ ok: true, goal: inserted[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/tasks  { description }  - add a task any time during the day
+// POST /api/tasks  { description }
 router.post("/tasks", async (req, res) => {
   try {
     const { description } = req.body;
@@ -152,9 +232,8 @@ router.post("/tasks", async (req, res) => {
       return res.status(400).json({ error: "description is required" });
     }
 
-    const user = await getOrCreateUser();
-    const goals = await getActiveGoals(user.id);
-    const log = await getOrCreateTodayLog(user.id);
+    const goals = await getActiveGoals(req.userId);
+    const log = await getOrCreateTodayLog(req.userId);
 
     const categorized = await categorizeSingleTask(description, goals);
 
@@ -191,8 +270,7 @@ router.patch("/tasks/:id/complete", async (req, res) => {
 router.post("/review", async (req, res) => {
   try {
     const { eveningSummary, moodNote } = req.body;
-    const user = await getOrCreateUser();
-    const log = await getOrCreateTodayLog(user.id);
+    const log = await getOrCreateTodayLog(req.userId);
 
     let embedding = null;
     let similarDay = null;
@@ -207,7 +285,7 @@ router.post("/review", async (req, res) => {
       });
 
       const pastLogs = await sb.get(
-        `daily_logs?select=id,log_date,evening_summary,embedding&user_id=eq.${user.id}&embedding=not.is.null&id=neq.${log.id}`
+        `daily_logs?select=id,log_date,evening_summary,embedding&user_id=eq.${req.userId}&embedding=not.is.null&id=neq.${log.id}`
       );
 
       let best = null;
@@ -237,7 +315,6 @@ router.post("/review", async (req, res) => {
   }
 });
 
-module.exports = router;
 // POST /api/push/subscribe  { subscription }
 router.post("/push/subscribe", async (req, res) => {
   try {
@@ -246,12 +323,10 @@ router.post("/push/subscribe", async (req, res) => {
       return res.status(400).json({ error: "Valid subscription object is required" });
     }
 
-    const user = await getOrCreateUser();
-
     await sb.upsert(
       "push_subscriptions",
       {
-        user_id: user.id,
+        user_id: req.userId,
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth,
@@ -265,66 +340,5 @@ router.post("/push/subscribe", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// GET /api/notifications/check-due?secret=YOUR_SECRET
-// Meant to be called by an external cron on a schedule, not by the frontend.
-router.get("/notifications/check-due", async (req, res) => {
-  try {
-    if (req.query.secret !== process.env.CRON_SECRET) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
 
-    const user = await getOrCreateUser();
-    const todayStr = today();
-
-    // Tasks due today or earlier, not completed, not reminded in the last 6 hours
-    const dueTasks = await sb.get(
-      `tasks?select=*&completed=eq.false&due_date=lte.${todayStr}&due_date=not.is.null`
-    );
-
-    const subs = await sb.get(`push_subscriptions?select=*&user_id=eq.${user.id}`);
-    if (!subs.length) {
-      return res.json({ ok: true, sent: 0, reason: "no subscriptions" });
-    }
-
-    let sentCount = 0;
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-
-    for (const task of dueTasks) {
-      if (task.last_reminded_at && task.last_reminded_at > sixHoursAgo) continue;
-
-      const prompt =
-        `Write a short, friendly one-sentence phone notification reminding the user about this task: ` +
-        `"${task.description}" (scope: ${task.scope}, due: ${task.due_date}). ` +
-        `Max 15 words, no preamble, just the reminder text.`;
-
-      let body;
-      try {
-        body = await callGemini(prompt);
-      } catch (e) {
-        body = `Reminder: ${task.description}`;
-      }
-
-      for (const sub of subs) {
-        const result = await sendPushNotification(sub, {
-          title: "Acorn Reminder",
-          body,
-          url: "/",
-        });
-        if (result.ok) sentCount++;
-        if (result.expired) {
-          await sb.get(`push_subscriptions?id=eq.${sub.id}`); // no-op guard
-          // Could delete expired subs here if desired
-        }
-      }
-
-      await sb.patch(`tasks?id=eq.${task.id}`, {
-        last_reminded_at: new Date().toISOString(),
-      });
-    }
-
-    res.json({ ok: true, sent: sentCount, tasksChecked: dueTasks.length });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+module.exports = router;

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,70 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ACORN</title>
     <style>
-        /* ==========================================================================
-           CSS VARIABLES & THEMING
-           Aesthetic: Daybook / Ledger Planner
-           ========================================================================== */
         :root {
-            /* Colors */
-            --paper-bg: #f4f1ea;        /* Off-white paper background */
-            --card-bg: #fcfbfa;         /* Slightly brighter for active cards */
-            --ink-navy: #1b263b;        /* Dark navy ink for primary text */
-            --ink-light: #415a77;       /* Lighter navy for secondary text */
-            --stamp-amber: #cf7e00;     /* Warm amber/gold for pending/alerts */
-            --stamp-green: #7da27e;     /* Sage green for completed states */
-            --border-color: #d8d3c5;    /* Subtle ledger line color */
-            --error-red: #9b2226;       /* Deep red for inline errors */
-            
-            /* Typography */
+            --paper-bg: #f4f1ea;
+            --card-bg: #fcfbfa;
+            --ink-navy: #1b263b;
+            --ink-light: #415a77;
+            --stamp-amber: #cf7e00;
+            --stamp-green: #7da27e;
+            --border-color: #d8d3c5;
+            --error-red: #9b2226;
             --font-serif: 'Georgia', 'Times New Roman', serif;
             --font-sans: 'Helvetica Neue', 'Arial', sans-serif;
             --font-mono: 'Courier New', 'Courier', monospace;
         }
-
-        /* ==========================================================================
-           RESET & BASE STYLES
-           ========================================================================== */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: var(--paper-bg);
             color: var(--ink-navy);
             font-family: var(--font-sans);
             line-height: 1.6;
             padding: 1.5rem 1rem 3rem 1rem;
-            max-width: 600px; /* Mobile-first, but capped on larger screens */
+            max-width: 600px;
             margin: 0 auto;
         }
-
-        h1, h2, h3 {
-            font-family: var(--font-serif);
-            font-weight: normal;
-            color: var(--ink-navy);
-        }
-
-        /* ==========================================================================
-           COMPONENTS
-           ========================================================================== */
-        
-        /* Header */
+        h1, h2, h3 { font-family: var(--font-serif); font-weight: normal; color: var(--ink-navy); }
         header {
             text-align: center;
             margin-bottom: 2.5rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--ink-navy);
         }
-
-        header h1 {
-            font-size: 2.5rem;
-            letter-spacing: 1px;
-            margin-bottom: 0.25rem;
-        }
-
+        header h1 { font-size: 2.5rem; letter-spacing: 1px; margin-bottom: 0.25rem; }
         .date-display {
             font-family: var(--font-mono);
             font-size: 0.85rem;
@@ -77,25 +43,20 @@
             color: var(--ink-light);
             letter-spacing: 0.5px;
         }
-
-        /* Cards (Daybook Sections) */
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             padding: 1.5rem;
             margin-bottom: 2rem;
-            box-shadow: 2px 2px 0px rgba(27, 38, 59, 0.05); /* Very subtle depth */
+            box-shadow: 2px 2px 0px rgba(27, 38, 59, 0.05);
         }
-
         .card-header {
             font-size: 1.25rem;
             margin-bottom: 1rem;
             border-bottom: 1px dashed var(--border-color);
             padding-bottom: 0.5rem;
         }
-
-        /* Forms & Inputs */
-        textarea, input[type="text"] {
+        textarea, input[type="text"], input[type="email"], input[type="password"] {
             width: 100%;
             background: transparent;
             border: none;
@@ -108,24 +69,14 @@
             outline: none;
             resize: vertical;
         }
-
         textarea {
             min-height: 80px;
             border: 1px solid var(--border-color);
             padding: 0.75rem;
             background: var(--paper-bg);
         }
-
-        textarea:focus, input[type="text"]:focus {
-            border-color: var(--ink-navy);
-        }
-
-        input::placeholder, textarea::placeholder {
-            color: #a0a0a0;
-            font-style: italic;
-        }
-
-        /* Buttons */
+        textarea:focus, input:focus { border-color: var(--ink-navy); }
+        input::placeholder, textarea::placeholder { color: #a0a0a0; font-style: italic; }
         .btn {
             background-color: var(--ink-navy);
             color: var(--paper-bg);
@@ -139,24 +90,9 @@
             letter-spacing: 0.5px;
             transition: opacity 0.2s;
         }
-
-        .btn:active {
-            opacity: 0.8;
-            transform: translateY(1px);
-        }
-
-        .btn-outline {
-            background-color: transparent;
-            color: var(--ink-navy);
-            border: 1px solid var(--ink-navy);
-        }
-
-        .btn-small {
-            padding: 0.3rem 0.8rem;
-            font-size: 0.8rem;
-        }
-
-        /* Rubber Stamps */
+        .btn:active { opacity: 0.8; transform: translateY(1px); }
+        .btn-outline { background-color: transparent; color: var(--ink-navy); border: 1px solid var(--ink-navy); }
+        .btn-small { padding: 0.3rem 0.8rem; font-size: 0.8rem; }
         .stamp {
             display: inline-block;
             font-family: var(--font-mono);
@@ -169,25 +105,9 @@
             letter-spacing: 1px;
             white-space: nowrap;
         }
-
-        .stamp-amber {
-            color: var(--stamp-amber);
-            border-color: var(--stamp-amber);
-            transform: rotate(-3deg);
-        }
-
-        .stamp-green {
-            color: var(--stamp-green);
-            border-color: var(--stamp-green);
-            transform: rotate(2deg);
-        }
-
-        /* Task List */
-        .task-list {
-            list-style: none;
-            margin-bottom: 1.5rem;
-        }
-
+        .stamp-amber { color: var(--stamp-amber); border-color: var(--stamp-amber); transform: rotate(-3deg); }
+        .stamp-green { color: var(--stamp-green); border-color: var(--stamp-green); transform: rotate(2deg); }
+        .task-list { list-style: none; margin-bottom: 1.5rem; }
         .task-item {
             display: flex;
             align-items: flex-start;
@@ -196,25 +116,10 @@
             border-bottom: 1px solid var(--border-color);
             gap: 1rem;
         }
-
-        .task-item:last-child {
-            border-bottom: none;
-        }
-
-        .task-content {
-            flex: 1;
-        }
-
-        .task-desc {
-            font-size: 1.05rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .task-desc.completed {
-            text-decoration: line-through;
-            color: var(--ink-light);
-        }
-
+        .task-item:last-child { border-bottom: none; }
+        .task-content { flex: 1; }
+        .task-desc { font-size: 1.05rem; margin-bottom: 0.25rem; }
+        .task-desc.completed { text-decoration: line-through; color: var(--ink-light); }
         .task-meta {
             font-family: var(--font-mono);
             font-size: 0.75rem;
@@ -223,12 +128,7 @@
             align-items: center;
             gap: 0.75rem;
         }
-
-        .task-action {
-            flex-shrink: 0;
-            padding-top: 0.2rem;
-        }
-
+        .task-action { flex-shrink: 0; padding-top: 0.2rem; }
         .add-task-row {
             display: flex;
             gap: 0.5rem;
@@ -236,29 +136,9 @@
             padding-top: 1rem;
             border-top: 1px dashed var(--border-color);
         }
-
-        .add-task-row input {
-            margin-bottom: 0;
-            border: 1px solid var(--border-color);
-            padding: 0.5rem;
-            background: var(--paper-bg);
-        }
-
-        /* Helpers & States */
-        .error-msg {
-            color: var(--error-red);
-            font-size: 0.85rem;
-            margin-top: 0.5rem;
-            font-family: var(--font-sans);
-            display: none;
-        }
-
-        .info-msg {
-            font-style: italic;
-            color: var(--ink-light);
-        }
-
-        /* Review Section Callbacks */
+        .add-task-row input { margin-bottom: 0; border: 1px solid var(--border-color); padding: 0.5rem; background: var(--paper-bg); }
+        .error-msg { color: var(--error-red); font-size: 0.85rem; margin-top: 0.5rem; font-family: var(--font-sans); display: none; }
+        .info-msg { font-style: italic; color: var(--ink-light); }
         .similar-day-box {
             margin-top: 1.5rem;
             padding: 1rem;
@@ -267,130 +147,152 @@
             font-size: 0.9rem;
             display: none;
         }
-        
-        .similar-day-box strong {
-            font-family: var(--font-serif);
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        /* Loading state util */
-        .loading {
-            opacity: 0.5;
-            pointer-events: none;
+        .similar-day-box strong { font-family: var(--font-serif); display: block; margin-bottom: 0.25rem; }
+        .loading { opacity: 0.5; pointer-events: none; }
+        footer.app-footer {
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--ink-light);
+            margin-top: 2rem;
+            letter-spacing: 0.5px;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
-    <!-- Header Section -->
-    <header>
-        <h1>ACORN</h1>
-        <div class="date-display" id="date-display">Loading date...</div>
-    </header>
-
-    <!-- Morning Check-in Card -->
-    <section class="card" id="checkin-card">
-        <h2 class="card-header">Morning Check-in</h2>
-        <div id="checkin-content">
-            <p class="info-msg">Fetching your daily briefing...</p>
+    <!-- Auth Screen -->
+    <div id="auth-screen" style="max-width:400px;margin:4rem auto;padding:0 1rem;">
+        <h1 style="font-family:var(--font-serif);text-align:center;font-size:2.2rem;margin-bottom:2rem;">ACORN</h1>
+        <div class="card">
+            <h2 class="card-header" id="auth-title">Sign In</h2>
+            <input type="email" id="auth-email" placeholder="Email">
+            <input type="password" id="auth-password" placeholder="Password">
+            <button class="btn" id="auth-submit-btn" onclick="handleAuthSubmit()" style="width:100%;margin-top:0.5rem;">Sign In</button>
+            <p style="text-align:center;margin-top:1rem;font-size:0.9rem;">
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(); return false;" style="color:var(--ink-light);">Need an account? Sign up</a>
+            </p>
+            <div class="error-msg" id="auth-error"></div>
+            <div class="info-msg" id="auth-info" style="display:none;text-align:center;margin-top:1rem;"></div>
         </div>
-        <div class="error-msg" id="checkin-error"></div>
-    </section>
-<!-- Goals Card -->
-<section class="card" id="goals-card">
-    <h2 class="card-header">Your Goals</h2>
-    <ul class="task-list" id="goals-list">
-        <p class="info-msg">Loading goals...</p>
-    </ul>
-    <div class="add-task-row">
-        <input type="text" id="new-goal-title" placeholder="New goal title...">
-        <input type="text" id="new-goal-desc" placeholder="Description (optional)...">
-        <button class="btn btn-outline" onclick="handleAddGoal()">Add</button>
     </div>
-    <div class="error-msg" id="goal-error"></div>
-</section>
-    <!-- Today's Tasks Card -->
-    <section class="card" id="tasks-card">
-        <h2 class="card-header">Today's Ledger</h2>
-        
-        <ul class="task-list" id="task-list">
-            <!-- Tasks injected via JS -->
-            <p class="info-msg">Loading tasks...</p>
-        </ul>
 
-        <div class="add-task-row">
-            <input type="text" id="new-task-input" placeholder="Jot down a new task...">
-            <button class="btn btn-outline" onclick="handleAddTask()">Add</button>
-        </div>
-        <div class="error-msg" id="task-error"></div>
-    </section>
+    <!-- Main App (hidden until signed in) -->
+    <div id="app-container" style="display:none;">
 
-    <!-- Evening Review Card -->
-    <section class="card" id="review-card">
-        <h2 class="card-header">Evening Review</h2>
-        <div id="review-form">
-            <textarea id="review-summary" placeholder="How did today go? Reflect on your progress..."></textarea>
-            <input type="text" id="review-mood" placeholder="Mood note (e.g., Focused, Tired, Inspired)">
-            <button class="btn" id="btn-submit-review" onclick="handleSubmitReview()">Save Entry</button>
-        </div>
-        <div class="error-msg" id="review-error"></div>
+        <header>
+            <h1>ACORN</h1>
+            <div class="date-display" id="date-display">Loading date...</div>
+            <button class="btn btn-outline btn-small" onclick="handleLogout()" style="margin-top:1rem;">Sign Out</button>
+        </header>
 
-        <!-- Hidden until review returns a similar day -->
-        <div class="similar-day-box" id="similar-day-box">
-            <strong>Echoes from the Past:</strong>
-            <span id="similar-day-date" style="font-family: var(--font-mono); font-size: 0.8rem;"></span>
-            <p id="similar-day-summary" style="margin-top: 0.5rem;"></p>
-        </div>
-    </section>
+        <!-- Morning Check-in Card -->
+        <section class="card" id="checkin-card">
+            <h2 class="card-header">Morning Check-in</h2>
+            <div id="checkin-content">
+                <p class="info-msg">Fetching your daily briefing...</p>
+            </div>
+            <div class="error-msg" id="checkin-error"></div>
+        </section>
+
+        <!-- Goals Card -->
+        <section class="card" id="goals-card">
+            <h2 class="card-header">Your Goals</h2>
+            <ul class="task-list" id="goals-list">
+                <p class="info-msg">Loading goals...</p>
+            </ul>
+            <div class="add-task-row">
+                <input type="text" id="new-goal-title" placeholder="New goal title...">
+                <input type="text" id="new-goal-desc" placeholder="Description (optional)...">
+                <button class="btn btn-outline" onclick="handleAddGoal()">Add</button>
+            </div>
+            <div class="error-msg" id="goal-error"></div>
+        </section>
+
+        <!-- Today's Tasks Card -->
+        <section class="card" id="tasks-card">
+            <h2 class="card-header">Today's Ledger</h2>
+            <ul class="task-list" id="task-list">
+                <p class="info-msg">Loading tasks...</p>
+            </ul>
+            <div class="add-task-row">
+                <input type="text" id="new-task-input" placeholder="Jot down a new task...">
+                <button class="btn btn-outline" onclick="handleAddTask()">Add</button>
+            </div>
+            <div class="error-msg" id="task-error"></div>
+        </section>
+
+        <!-- Evening Review Card -->
+        <section class="card" id="review-card">
+            <h2 class="card-header">Evening Review</h2>
+            <div id="review-form">
+                <textarea id="review-summary" placeholder="How did today go? Reflect on your progress..."></textarea>
+                <input type="text" id="review-mood" placeholder="Mood note (e.g., Focused, Tired, Inspired)">
+                <button class="btn" id="btn-submit-review" onclick="handleSubmitReview()">Save Entry</button>
+            </div>
+            <div class="error-msg" id="review-error"></div>
+            <div class="similar-day-box" id="similar-day-box">
+                <strong>Echoes from the Past:</strong>
+                <span id="similar-day-date" style="font-family: var(--font-mono); font-size: 0.8rem;"></span>
+                <p id="similar-day-summary" style="margin-top: 0.5rem;"></p>
+            </div>
+        </section>
+
+        <footer class="app-footer">Made by impulse</footer>
+
+    </div><!-- /#app-container -->
 
     <!-- ==========================================================================
          APPLICATION LOGIC (JavaScript)
          ========================================================================== -->
     <script>
         // --- CONFIGURATION ---
-        // TODO: Replace with your actual Express API Base URL
-        const API_BASE = ""; 
+        const API_BASE = "";
+
+        // --- SUPABASE AUTH ---
+        const SUPABASE_URL = "https://grtrvkxaeehkhxealzoe.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdydHJ2a3hhZWVoa2h4ZWFsem9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2NjQzMTIsImV4cCI6MjA5OTI0MDMxMn0.3MJQmnRjUqynLYRbqf-0LT3qZwEfG5PQl1-eFcCYXuM";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let isSignUpMode = false;
+        let currentSession = null;
 
         // --- GLOBAL STATE ---
-        let globalGoals = []; // To map goal_id to goal titles
+        let globalGoals = [];
         let todayTasks = [];
 
         // --- UTILITIES ---
-        
-        // Formats today's date like "SATURDAY, JULY 18, 2026"
         function setDisplayDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const today = new Date().toLocaleDateString('en-US', options).toUpperCase();
             document.getElementById('date-display').textContent = today;
         }
 
-        // Show inline errors
         function showError(elementId, message) {
             const el = document.getElementById(elementId);
             if (el) {
                 el.textContent = message;
                 el.style.display = 'block';
-                // Auto hide after 5 seconds
                 setTimeout(() => el.style.display = 'none', 5000);
             }
         }
 
-        // Helper for fetch to handle JSON and throw on non-ok status
         async function apiCall(endpoint, options = {}) {
             try {
                 const response = await fetch(`${API_BASE}${endpoint}`, {
                     ...options,
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentSession?.access_token || ''}`,
                         ...(options.headers || {})
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`API Error: ${response.status} ${response.statusText}`);
                 }
-                
+
                 return await response.json();
             } catch (error) {
                 console.error(`Error fetching ${endpoint}:`, error);
@@ -398,93 +300,176 @@
             }
         }
 
-        // --- INITIALIZATION & FETCHES ---
-
-        async function initApp() {
-    setDisplayDate();
-    
-    // Step 1: Await goal structure first as the foundation of the ledger
-    await fetchGoals();
-    
-    // Step 2: Now run check-in and task fetches concurrently
-    await Promise.all([
-        fetchCheckinStatus(),
-        fetchTodayTasks()
-    ]);
-
-    // Step 3: Set up push notifications (asks permission, subscribes)
-    setupPushNotifications();
-}
-
-        // GET /api/goals
-        // Replace the existing fetchGoals function with this version — it now renders too
-async function fetchGoals() {
-    const container = document.getElementById('goals-list');
-    try {
-        const data = await apiCall('/api/goals');
-        globalGoals = data.goals || (Array.isArray(data) ? data : []);
-        renderGoals();
-    } catch (err) {
-        console.warn("Could not retrieve goals.", err);
-        globalGoals = [];
-        if (container) container.innerHTML = `<p class="info-msg" style="color: var(--error-red);">Could not load goals.</p>`;
-    }
-}
-
-function renderGoals() {
-    const container = document.getElementById('goals-list');
-    if (!container) return;
-
-    if (globalGoals.length === 0) {
-        container.innerHTML = `<p class="info-msg">No active goals yet.</p>`;
-        return;
-    }
-
-    container.innerHTML = '';
-    globalGoals.forEach(goal => {
-        const li = document.createElement('li');
-        li.className = 'task-item';
-        li.innerHTML = `
-            <div class="task-content">
-                <div class="task-desc">${escapeHTML(goal.title)}</div>
-                ${goal.description ? `<div class="task-meta">${escapeHTML(goal.description)}</div>` : ''}
-            </div>
-        `;
-        container.appendChild(li);
-    });
-}
-
-async function handleAddGoal() {
-    const titleEl = document.getElementById('new-goal-title');
-    const descEl = document.getElementById('new-goal-desc');
-    const title = titleEl.value.trim();
-    const description = descEl.value.trim();
-
-    if (!title) return;
-
-    titleEl.disabled = true;
-
-    try {
-        const data = await apiCall('/api/goals', {
-            method: 'POST',
-            body: JSON.stringify({ title, description })
-        });
-
-        if (data.ok && data.goal) {
-            globalGoals.push(data.goal);
-            renderGoals();
-            titleEl.value = '';
-            descEl.value = '';
+        // --- AUTH FLOW ---
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            document.getElementById('auth-title').textContent = isSignUpMode ? "Create Account" : "Sign In";
+            document.getElementById('auth-submit-btn').textContent = isSignUpMode ? "Sign Up" : "Sign In";
+            document.getElementById('auth-toggle-link').textContent = isSignUpMode
+                ? "Already have an account? Sign in"
+                : "Need an account? Sign up";
+            document.getElementById('auth-info').style.display = 'none';
         }
-    } catch (err) {
-        showError('goal-error', 'Could not add goal.');
-    } finally {
-        titleEl.disabled = false;
-        titleEl.focus();
-    }
-}
 
-        // GET /api/checkin
+        async function handleAuthSubmit() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const btn = document.getElementById('auth-submit-btn');
+
+            if (!email || !password) {
+                showError('auth-error', 'Email and password are required.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = isSignUpMode ? "Signing up..." : "Signing in...";
+
+            try {
+                if (isSignUpMode) {
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email, password,
+                        options: { emailRedirectTo: window.location.origin }
+                    });
+                    if (error) throw error;
+
+                    if (data.session) {
+                        onSignedIn(data.session);
+                    } else {
+                        document.getElementById('auth-info').textContent =
+                            "Check your email to confirm your account, then come back here.";
+                        document.getElementById('auth-info').style.display = 'block';
+                    }
+                } else {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    onSignedIn(data.session);
+                }
+            } catch (err) {
+                showError('auth-error', err.message || 'Authentication failed.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = isSignUpMode ? "Sign Up" : "Sign In";
+            }
+        }
+
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+            currentSession = null;
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'block';
+        }
+
+        function onSignedIn(session) {
+            currentSession = session;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'block';
+            initApp();
+        }
+
+        async function checkExistingSession() {
+            const { data } = await supabaseClient.auth.getSession();
+            if (data.session) {
+                onSignedIn(data.session);
+            } else {
+                document.getElementById('auth-screen').style.display = 'block';
+            }
+        }
+
+        // --- INITIALIZATION & FETCHES ---
+        async function initApp() {
+            setDisplayDate();
+            await fetchGoals();
+            await Promise.all([
+                fetchCheckinStatus(),
+                fetchTodayTasks()
+            ]);
+            setupPushNotifications();
+
+            document.getElementById('new-task-input')?.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleAddTask();
+            });
+        }
+
+        async function fetchGoals() {
+            const container = document.getElementById('goals-list');
+            try {
+                const data = await apiCall('/api/goals');
+                globalGoals = data.goals || (Array.isArray(data) ? data : []);
+                renderGoals();
+            } catch (err) {
+                console.warn("Could not retrieve goals.", err);
+                globalGoals = [];
+                if (container) container.innerHTML = `<p class="info-msg" style="color: var(--error-red);">Could not load goals.</p>`;
+            }
+        }
+
+        function renderGoals() {
+            const container = document.getElementById('goals-list');
+            if (!container) return;
+
+            if (globalGoals.length === 0) {
+                container.innerHTML = `<p class="info-msg">No active goals yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            globalGoals.forEach(goal => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.innerHTML = `
+                    <div class="task-content">
+                        <div class="task-desc">${escapeHTML(goal.title)}</div>
+                        ${goal.description ? `<div class="task-meta">${escapeHTML(goal.description)}</div>` : ''}
+                    </div>
+                    <div class="task-action">
+                        <button class="btn btn-outline btn-small" onclick="handleRemoveGoal('${goal.id}')">Remove</button>
+                    </div>
+                `;
+                container.appendChild(li);
+            });
+        }
+
+        async function handleAddGoal() {
+            const titleEl = document.getElementById('new-goal-title');
+            const descEl = document.getElementById('new-goal-desc');
+            const title = titleEl.value.trim();
+            const description = descEl.value.trim();
+
+            if (!title) return;
+
+            titleEl.disabled = true;
+
+            try {
+                const data = await apiCall('/api/goals', {
+                    method: 'POST',
+                    body: JSON.stringify({ title, description })
+                });
+
+                if (data.ok && data.goal) {
+                    globalGoals.push(data.goal);
+                    renderGoals();
+                    titleEl.value = '';
+                    descEl.value = '';
+                }
+            } catch (err) {
+                showError('goal-error', 'Could not add goal.');
+            } finally {
+                titleEl.disabled = false;
+                titleEl.focus();
+            }
+        }
+
+        async function handleRemoveGoal(goalId) {
+            if (!confirm('Remove this goal?')) return;
+            try {
+                await apiCall(`/api/goals/${goalId}`, { method: 'DELETE' });
+                globalGoals = globalGoals.filter(g => String(g.id) !== String(goalId));
+                renderGoals();
+            } catch (err) {
+                showError('goal-error', 'Could not remove goal.');
+            }
+        }
+
         async function fetchCheckinStatus() {
             const container = document.getElementById('checkin-content');
             try {
@@ -505,7 +490,6 @@ async function handleAddGoal() {
             }
         }
 
-        // GET /api/tasks/today
         async function fetchTodayTasks() {
             const container = document.getElementById('task-list');
             try {
@@ -517,9 +501,6 @@ async function handleAddGoal() {
             }
         }
 
-        // --- ACTION HANDLERS ---
-
-        // POST /api/checkin
         async function submitCheckin() {
             const responseText = document.getElementById('checkin-response').value.trim();
             if (!responseText) {
@@ -537,16 +518,13 @@ async function handleAddGoal() {
                 });
 
                 if (data.ok) {
-                    // Update checkin UI
                     document.getElementById('checkin-content').innerHTML = `
                         <p class="info-msg" style="color: var(--stamp-green); font-weight: bold;">✓ Morning briefing logged.</p>
                     `;
-                    // If backend returns new tasks generated from the plan, update the list
                     if (data.tasks) {
                         todayTasks = data.tasks;
                         renderTasks();
                     } else {
-                        // Otherwise just re-fetch tasks to be safe
                         fetchTodayTasks();
                     }
                 }
@@ -557,11 +535,10 @@ async function handleAddGoal() {
             }
         }
 
-        // POST /api/tasks
         async function handleAddTask() {
             const inputEl = document.getElementById('new-task-input');
             const description = inputEl.value.trim();
-            
+
             if (!description) return;
 
             inputEl.disabled = true;
@@ -575,7 +552,7 @@ async function handleAddGoal() {
                 if (data.ok && data.task) {
                     todayTasks.push(data.task);
                     renderTasks();
-                    inputEl.value = ''; // clear input
+                    inputEl.value = '';
                 }
             } catch (err) {
                 showError('task-error', 'Could not add task. Is the API running?');
@@ -585,32 +562,23 @@ async function handleAddGoal() {
             }
         }
 
-        // PATCH /api/tasks/:id/complete
         async function completeTask(taskId) {
             try {
-                const data = await apiCall(`/api/tasks/${taskId}/complete`, {
-                    method: 'PATCH'
-                });
-                
-                // Optimistically update the UI regardless of full return payload, 
-                // assuming 200 OK means success.
+                await apiCall(`/api/tasks/${taskId}/complete`, { method: 'PATCH' });
                 const taskIndex = todayTasks.findIndex(t => t.id === taskId);
                 if (taskIndex > -1) {
                     todayTasks[taskIndex].completed = true;
                     renderTasks();
                 }
-
             } catch (err) {
-                // Per requirements: alert popup is fine for this specific failure
                 alert('Butler encountered an error marking this task complete. Please try again.');
             }
         }
 
-        // POST /api/review
         async function handleSubmitReview() {
             const summary = document.getElementById('review-summary').value.trim();
             const mood = document.getElementById('review-mood').value.trim();
-            
+
             if (!summary && !mood) {
                 showError('review-error', 'Please enter some reflection notes before saving.');
                 return;
@@ -626,21 +594,18 @@ async function handleAddGoal() {
                     body: JSON.stringify({ eveningSummary: summary, moodNote: mood })
                 });
 
-                // Clear form and show success state
                 document.getElementById('review-form').innerHTML = `
                     <p class="info-msg" style="color: var(--stamp-green); font-weight: bold; margin-bottom: 1rem;">
                         ✓ Ledger closed. ${data.completedCount || 0} / ${data.totalCount || 0} tasks completed today.
                     </p>
                 `;
 
-                // Handle the Similar Day callback
                 if (data.similarDay) {
                     const simBox = document.getElementById('similar-day-box');
                     document.getElementById('similar-day-date').textContent = data.similarDay.date;
                     document.getElementById('similar-day-summary').textContent = `"${data.similarDay.summary}"`;
                     simBox.style.display = 'block';
                 }
-
             } catch (err) {
                 showError('review-error', 'Could not save evening review.');
                 btn.textContent = 'Save Entry';
@@ -648,38 +613,33 @@ async function handleAddGoal() {
             }
         }
 
-        // --- RENDER LOGIC ---
-        
         function renderTasks() {
             const container = document.getElementById('task-list');
-            
+
             if (todayTasks.length === 0) {
                 container.innerHTML = `<p class="info-msg">No tasks logged for today yet.</p>`;
                 return;
             }
 
-            container.innerHTML = ''; // Clear current list
+            container.innerHTML = '';
 
             todayTasks.forEach(task => {
                 const li = document.createElement('li');
                 li.className = 'task-item';
 
-                // Look up goal name, default to unassigned
                 let goalName = "UNASSIGNED";
                 if (task.goal_id && globalGoals.length > 0) {
                     const foundGoal = globalGoals.find(g => String(g.id) === String(task.goal_id));
                     if (foundGoal) goalName = foundGoal.title.toUpperCase();
                 }
 
-                // Determine styling based on completion
                 const descClass = task.completed ? 'task-desc completed' : 'task-desc';
-                const stampHTML = task.completed 
+                const stampHTML = task.completed
                     ? `<span class="stamp stamp-green">COMPLETED</span>`
                     : `<span class="stamp stamp-amber">PENDING</span>`;
 
-                // Build action button (only show 'Yes' if not completed)
-                const actionHTML = task.completed 
-                    ? `` 
+                const actionHTML = task.completed
+                    ? ``
                     : `<button class="btn btn-outline btn-small" onclick="completeTask('${task.id}')">Yes</button>`;
 
                 li.innerHTML = `
@@ -698,10 +658,9 @@ async function handleAddGoal() {
             });
         }
 
-        // Simple HTML escaper to prevent XSS if you inject weird chars in tasks
         function escapeHTML(str) {
             if (!str) return '';
-            return str.replace(/[&<>'"]/g, 
+            return str.replace(/[&<>'"]/g,
                 tag => ({
                     '&': '&amp;',
                     '<': '&lt;',
@@ -712,59 +671,49 @@ async function handleAddGoal() {
             );
         }
 
-        // Boot up!
-        document.addEventListener('DOMContentLoaded', initApp);
         async function setupPushNotifications() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Push notifications not supported on this browser.');
-        return;
-    }
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.warn('Push notifications not supported on this browser.');
+                return;
+            }
 
-    try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
 
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.warn('Notification permission not granted.');
-            return;
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    console.warn('Notification permission not granted.');
+                    return;
+                }
+
+                const VAPID_PUBLIC_KEY = "BF0sLI059UMlWSWOOC8qEfRoXcK2zeZRDi54PR4F2GuMT101-Kva_djSew8CJP76Ukn5IT9htYmi74kCQyZepc8";
+
+                const existingSub = await registration.pushManager.getSubscription();
+                const subscription = existingSub || await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+
+                await apiCall('/api/push/subscribe', {
+                    method: 'POST',
+                    body: JSON.stringify({ subscription: subscription.toJSON() })
+                });
+
+                console.log('Push subscription saved.');
+            } catch (err) {
+                console.error('Push setup failed:', err);
+            }
         }
 
-        // VAPID public key — same value as VAPID_PUBLIC_KEY in Render's env vars
-        const VAPID_PUBLIC_KEY = "BF0sLI059UMlWSWOOC8qEfRoXcK2zeZRDi54PR4F2GuMT101-Kva_djSew8CJP76Ukn5IT9htYmi74kCQyZepc8";
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+        }
 
-        const existingSub = await registration.pushManager.getSubscription();
-        const subscription = existingSub || await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-
-        await apiCall('/api/push/subscribe', {
-            method: 'POST',
-            body: JSON.stringify({ subscription: subscription.toJSON() })
-        });
-
-        console.log('Push subscription saved.');
-    } catch (err) {
-        console.error('Push setup failed:', err);
-    }
-}
-
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
-}
-
-        // Allow 'Enter' key to submit new task
-        document.getElementById('new-task-input')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                handleAddTask();
-            }
-        });
-
+        // Boot up!
+        document.addEventListener('DOMContentLoaded', checkExistingSession);
     </script>
 </body>
 </html>
-
-
