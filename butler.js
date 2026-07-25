@@ -56,7 +56,6 @@ router.get("/notifications/check-due", async (req, res) => {
 
     const todayStr = today();
 
-    // Due tasks across ALL users, with owning user_id embedded via daily_logs
     const dueTasks = await sb.get(
       `tasks?select=*,daily_logs(user_id)&completed=eq.false&due_date=lte.${todayStr}&due_date=not.is.null`
     );
@@ -65,7 +64,6 @@ router.get("/notifications/check-due", async (req, res) => {
       return res.json({ ok: true, sent: 0, tasksChecked: 0 });
     }
 
-    // Group due tasks by owning user
     const tasksByUser = {};
     for (const task of dueTasks) {
       const uid = task.daily_logs?.user_id;
@@ -103,7 +101,6 @@ router.get("/notifications/check-due", async (req, res) => {
             url: "/",
           });
           if (result.ok) sentCount++;
-          // Could delete expired subs here if desired (result.expired)
         }
 
         await sb.patch(`tasks?id=eq.${task.id}`, {
@@ -151,6 +148,17 @@ router.post("/goals", async (req, res) => {
     });
 
     res.json({ ok: true, goal: inserted[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/goals/:id - remove a goal
+router.delete("/goals/:id", async (req, res) => {
+  try {
+    await sb.delete(`goals?id=eq.${req.params.id}&user_id=eq.${req.userId}`);
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

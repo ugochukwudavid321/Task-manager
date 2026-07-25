@@ -29,7 +29,6 @@ async function sbRequest(method, path, { body, returnRepresentation = true } = {
     throw new Error(`Supabase ${method} ${path} failed: ${res.status} ${errText}`);
   }
 
-  // 204 No Content or empty body
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
@@ -53,16 +52,6 @@ async function sbUpsert(path, body, onConflict) {
   return text ? JSON.parse(text) : null;
 }
 
-const sb = {
-  get: (path) => sbRequest("GET", path),
-  post: (path, body) => sbRequest("POST", path, { body }),
-  patch: (path, body) => sbRequest("PATCH", path, { body }),
-  upsert: (path, body, onConflict) => sbUpsert(path, body, onConflict),
-};
-delete: (path) => sbRequest("DELETE", path, { returnRepresentation: false }),
-
-module.exports = { sb };
-// Verifies a user's access token and returns their auth user object
 async function getUserFromToken(token) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
@@ -73,5 +62,13 @@ async function getUserFromToken(token) {
   if (!res.ok) return null;
   return res.json(); // { id, email, ... }
 }
+
+const sb = {
+  get: (path) => sbRequest("GET", path),
+  post: (path, body) => sbRequest("POST", path, { body }),
+  patch: (path, body) => sbRequest("PATCH", path, { body }),
+  delete: (path) => sbRequest("DELETE", path, { returnRepresentation: false }),
+  upsert: (path, body, onConflict) => sbUpsert(path, body, onConflict),
+};
 
 module.exports = { sb, getUserFromToken };
