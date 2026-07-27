@@ -12,6 +12,16 @@ webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 async function sendPushNotification(subscription, payload) {
   try {
+    const fullPayload = {
+      icon: "/icon.png",
+      badge: "/icon.png",
+      actions: [
+        { action: "open", title: "Open Ledger" },
+        { action: "dismiss", title: "Dismiss" },
+      ],
+      ...payload,
+    };
+
     await webpush.sendNotification(
       {
         endpoint: subscription.endpoint,
@@ -20,7 +30,7 @@ async function sendPushNotification(subscription, payload) {
           auth: subscription.auth,
         },
       },
-      JSON.stringify(payload)
+      JSON.stringify(fullPayload)
     );
     return { ok: true };
   } catch (err) {

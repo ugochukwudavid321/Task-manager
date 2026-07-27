@@ -9,8 +9,9 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Acorn";
   const options = {
     body: data.body || "You have a task reminder.",
-    icon: "/icon.png",
-    badge: "/icon.png",
+    icon: data.icon || "/icon.png",
+    badge: data.badge || "/icon.png",
+    actions: data.actions || [],
     data: { url: data.url || "/" },
   };
 
@@ -19,6 +20,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+
+  if (event.action === "dismiss") {
+    return;
+  }
+
   const url = event.notification.data?.url || "/";
   event.waitUntil(clients.openWindow(url));
 });

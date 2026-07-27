@@ -169,6 +169,67 @@
             letter-spacing: 0.5px;
             color: var(--ink-light);
         }
+
+        /* --- Pre-permission notification banner --- */
+        #notif-banner {
+            position: fixed;
+            left: 1rem;
+            right: 1rem;
+            bottom: 1rem;
+            max-width: 568px;
+            margin: 0 auto;
+            background-color: var(--ink-navy);
+            color: var(--paper-bg);
+            border: 1px solid var(--ink-navy);
+            box-shadow: 3px 3px 0px rgba(27, 38, 59, 0.25);
+            padding: 1.1rem 1.1rem 1rem 1.1rem;
+            z-index: 500;
+            display: none;
+        }
+        #notif-banner.visible { display: block; }
+        .notif-banner-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .notif-banner-title {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            margin-bottom: 0.35rem;
+        }
+        .notif-banner-body {
+            font-size: 0.85rem;
+            color: #d8dee9;
+            line-height: 1.5;
+        }
+        .notif-banner-close {
+            background: none;
+            border: none;
+            color: var(--paper-bg);
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0.15rem 0.3rem;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+        .notif-banner-close:active { opacity: 1; }
+        .notif-banner-actions {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: 0.9rem;
+        }
+        .notif-banner-actions .btn {
+            background-color: var(--stamp-amber);
+            color: var(--ink-navy);
+        }
+        .notif-banner-actions .btn-outline {
+            background: transparent;
+            color: var(--paper-bg);
+            border: 1px solid var(--paper-bg);
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -179,6 +240,9 @@
         <h1 style="font-family:var(--font-serif);text-align:center;font-size:2.2rem;margin-bottom:2rem;">ACORN</h1>
         <div class="card">
             <h2 class="card-header" id="auth-title">Sign In</h2>
+
+            <input type="text" id="auth-name" placeholder="Your name" style="display:none;">
+
             <input type="email" id="auth-email" placeholder="Email">
 
             <div class="password-field-wrap">
@@ -265,6 +329,21 @@
 
     </div><!-- /#app-container -->
 
+    <!-- Pre-permission notification banner -->
+    <div id="notif-banner">
+        <div class="notif-banner-top">
+            <div>
+                <div class="notif-banner-title">Stay on top of your ledger</div>
+                <div class="notif-banner-body">ACORN can nudge you when a task is due, so nothing slips through. We'll only ask your browser once you say yes here.</div>
+            </div>
+            <button class="notif-banner-close" onclick="dismissNotifBanner()">✕</button>
+        </div>
+        <div class="notif-banner-actions">
+            <button class="btn" onclick="handleEnableReminders()">Enable Reminders</button>
+            <button class="btn btn-outline" onclick="dismissNotifBanner()">Not now</button>
+        </div>
+    </div>
+
     <!-- ==========================================================================
          APPLICATION LOGIC (JavaScript)
          ========================================================================== -->
@@ -337,11 +416,13 @@
             document.getElementById('auth-toggle-link').textContent = isSignUpMode
                 ? "Already have an account? Sign in"
                 : "Need an account? Sign up";
+            document.getElementById('auth-name').style.display = isSignUpMode ? 'block' : 'none';
             document.getElementById('confirm-password-row').style.display = isSignUpMode ? 'block' : 'none';
             document.getElementById('auth-info').style.display = 'none';
         }
 
         async function handleAuthSubmit() {
+            const name = document.getElementById('auth-name').value.trim();
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const btn = document.getElementById('auth-submit-btn');
@@ -366,7 +447,10 @@
                 if (isSignUpMode) {
                     const { data, error } = await supabaseClient.auth.signUp({
                         email, password,
-                        options: { emailRedirectTo: window.location.origin }
+                        options: {
+                            emailRedirectTo: window.location.origin,
+                            data: { full_name: name || null }
+                        }
                     });
                     if (error) throw error;
 
@@ -395,6 +479,7 @@
             currentSession = null;
             document.getElementById('app-container').style.display = 'none';
             document.getElementById('auth-screen').style.display = 'block';
+            hideNotifBanner();
         }
 
         function onSignedIn(session) {
@@ -421,7 +506,7 @@
                 fetchCheckinStatus(),
                 fetchTodayTasks()
             ]);
-            setupPushNotifications();
+            maybeShowNotifBanner();
 
             document.getElementById('new-task-input')?.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') handleAddTask();
@@ -707,6 +792,36 @@
                     '"': '&quot;'
                 }[tag] || tag)
             );
+        }
+
+        // --- PRE-PERMISSION NOTIFICATION BANNER ---
+        const NOTIF_DISMISS_KEY = 'acorn_notif_banner_dismissed';
+
+        function maybeShowNotifBanner() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                return; // unsupported, never show
+            }
+            if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+                return; // already decided, nothing to ask
+            }
+            if (localStorage.getItem(NOTIF_DISMISS_KEY) === '1') {
+                return; // user already dismissed it before
+            }
+            document.getElementById('notif-banner').classList.add('visible');
+        }
+
+        function hideNotifBanner() {
+            document.getElementById('notif-banner').classList.remove('visible');
+        }
+
+        function dismissNotifBanner() {
+            localStorage.setItem(NOTIF_DISMISS_KEY, '1');
+            hideNotifBanner();
+        }
+
+        async function handleEnableReminders() {
+            hideNotifBanner();
+            await setupPushNotifications();
         }
 
         async function setupPushNotifications() {

@@ -16,10 +16,10 @@ function today() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-async function getOrCreateUserProfile(userId, email) {
+async function getOrCreateUserProfile(userId, email, preferredName) {
   const users = await sb.get(`users?select=*&id=eq.${userId}`);
   if (users.length) return users[0];
-  const fallbackName = email ? email.split("@")[0] : "User";
+  const fallbackName = preferredName || (email ? email.split("@")[0] : "User");
   const created = await sb.post("users", { id: userId, name: fallbackName });
   return created[0];
 }
@@ -168,7 +168,7 @@ router.delete("/goals/:id", async (req, res) => {
 // GET /api/checkin - morning question + today's status
 router.get("/checkin", async (req, res) => {
   try {
-    const profile = await getOrCreateUserProfile(req.userId, req.userEmail);
+    const profile = await getOrCreateUserProfile(req.userId, req.userEmail, req.userName);
     const goals = await getActiveGoals(req.userId);
     const log = await getOrCreateTodayLog(req.userId);
 
