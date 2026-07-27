@@ -157,6 +157,18 @@
             margin-top: 2rem;
             letter-spacing: 0.5px;
         }
+        .password-field-wrap { position: relative; }
+        .password-field-wrap input { padding-right: 3.5rem; }
+        .password-toggle-label {
+            position: absolute;
+            right: 0;
+            top: 0.5rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            letter-spacing: 0.5px;
+            color: var(--ink-light);
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -168,7 +180,17 @@
         <div class="card">
             <h2 class="card-header" id="auth-title">Sign In</h2>
             <input type="email" id="auth-email" placeholder="Email">
-            <input type="password" id="auth-password" placeholder="Password">
+
+            <div class="password-field-wrap">
+                <input type="password" id="auth-password" placeholder="Password">
+                <span class="password-toggle-label" onclick="togglePasswordVisibility('auth-password', this)">SHOW</span>
+            </div>
+
+            <div class="password-field-wrap" id="confirm-password-row" style="display:none;">
+                <input type="password" id="auth-confirm-password" placeholder="Confirm password">
+                <span class="password-toggle-label" onclick="togglePasswordVisibility('auth-confirm-password', this)">SHOW</span>
+            </div>
+
             <button class="btn" id="auth-submit-btn" onclick="handleAuthSubmit()" style="width:100%;margin-top:0.5rem;">Sign In</button>
             <p style="text-align:center;margin-top:1rem;font-size:0.9rem;">
                 <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(); return false;" style="color:var(--ink-light);">Need an account? Sign up</a>
@@ -184,7 +206,6 @@
         <header>
             <h1>ACORN</h1>
             <div class="date-display" id="date-display">Loading date...</div>
-            <button class="btn btn-outline btn-small" onclick="handleLogout()" style="margin-top:1rem;">Sign Out</button>
         </header>
 
         <!-- Morning Check-in Card -->
@@ -239,6 +260,7 @@
             </div>
         </section>
 
+        <button class="btn btn-outline btn-small" onclick="handleLogout()" style="display:block;margin:0 auto 1rem auto;">Sign Out</button>
         <footer class="app-footer">Made by impulse</footer>
 
     </div><!-- /#app-container -->
@@ -301,6 +323,13 @@
         }
 
         // --- AUTH FLOW ---
+        function togglePasswordVisibility(inputId, labelEl) {
+            const input = document.getElementById(inputId);
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            labelEl.textContent = isHidden ? 'HIDE' : 'SHOW';
+        }
+
         function toggleAuthMode() {
             isSignUpMode = !isSignUpMode;
             document.getElementById('auth-title').textContent = isSignUpMode ? "Create Account" : "Sign In";
@@ -308,6 +337,7 @@
             document.getElementById('auth-toggle-link').textContent = isSignUpMode
                 ? "Already have an account? Sign in"
                 : "Need an account? Sign up";
+            document.getElementById('confirm-password-row').style.display = isSignUpMode ? 'block' : 'none';
             document.getElementById('auth-info').style.display = 'none';
         }
 
@@ -319,6 +349,14 @@
             if (!email || !password) {
                 showError('auth-error', 'Email and password are required.');
                 return;
+            }
+
+            if (isSignUpMode) {
+                const confirmPassword = document.getElementById('auth-confirm-password').value;
+                if (password !== confirmPassword) {
+                    showError('auth-error', 'Passwords do not match.');
+                    return;
+                }
             }
 
             btn.disabled = true;

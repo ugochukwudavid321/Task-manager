@@ -54,22 +54,20 @@ async function generateCheckinQuestion(name, goals) {
 
 // Split free text into individual tasks, each matched to the single best-fit goal id (or null).
 async function parseTasksWithGoals(rawText, goals) {
-  if (!goals.length) {
-    return rawText
-      .split("\n")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .map((description) => ({ description, goal_id: null }));
-  }
+  const goalList = goals.length
+    ? goals.map((g) => `- id="${g.id}" title="${g.title}"`).join("\n")
+    : "(no active goals)";
 
-  const goalList = goals.map((g) => `- id="${g.id}" title="${g.title}"`).join("\n");
   const prompt =
     `Active goals (id and title):\n${goalList}\n\n` +
-    `User's plan for today:\n"${rawText}"\n\n` +
-    `Split this into individual, concrete tasks. For each task, pick the SINGLE closest-matching ` +
-    `goal id from the list above, or null if it doesn't clearly relate to any goal. If a task could ` +
-    `relate to more than one goal, choose only the one it most directly serves.\n\n` +
-    `Respond with ONLY valid JSON, no markdown fences, no preamble, in this exact shape:\n` +
+    `User's rough plan for today, written quickly and possibly run-on or messy:\n"${rawText}"\n\n` +
+    `Break this into individual, concrete tasks. For each one, REWRITE it as a short, clear, ` +
+    `actionable phrase in your own words — do NOT copy the user's original wording verbatim. ` +
+    `Fix grammar, remove filler words, and make each task read like a clean to-do item ` +
+    `(e.g. "wash prep for church train read" might become "Prepare laundry for church" and "Read for training"). ` +
+    `Then, for each task, pick the SINGLE closest-matching goal id from the list above, ` +
+    `or null if it doesn't clearly relate to any goal.\n\n` +
+    `Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:\n` +
     `[{"description": "...", "goal_id": "..."}, {"description": "...", "goal_id": null}]`;
 
   try {
@@ -80,8 +78,14 @@ async function parseTasksWithGoals(rawText, goals) {
     throw new Error("Empty or invalid parse result");
   } catch (err) {
     console.error("Gemini error (categorize):", err.message);
-    // Fallback: single task, unassigned, so nothing is silently lost
-    return [{ description: rawText, goal_id: null }];
+    // Fallback: naive split on line breaks / periods / commas, so a bad
+    // Gemini response doesn't dump the entire raw text as one giant task.
+    const fallbackTasks = rawText
+      .split(/[\n.,]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((description) => ({ description, goal_id: null }));
+    return fallbackTasks.length ? fallbackTasks : [{ description: rawText, goal_id: null }];
   }
 }
 
