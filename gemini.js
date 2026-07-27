@@ -34,21 +34,50 @@ async function getEmbedding(text) {
   return data.embedding.values;
 }
 
-// Ask Gemini for a short motivating morning check-in question, tied to active goals.
-async function generateCheckinQuestion(name, goals) {
+// Get a time-of-day greeting word, respecting the user's own timezone rather
+// than the server's. Falls back to UTC if the timezone string is invalid.
+function getTimeOfDayGreeting(timezone) {
+  let hour;
+  try {
+    hour = parseInt(
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: timezone || "UTC",
+      }).format(new Date()),
+      10
+    );
+  } catch (err) {
+    hour = new Date().getUTCHours();
+  }
+
+  if (hour < 5) return "Late night";
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  if (hour < 21) return "Evening";
+  return "Evening";
+}
+
+// Ask Gemini for a short motivating check-in question, tied to active goals
+// and the actual time of day for the user.
+async function generateCheckinQuestion(name, goals, timezone) {
+  const greeting = getTimeOfDayGreeting(timezone);
+
   if (!goals.length) {
-    return `Morning ${name} — what's on your plate today?`;
+    return `${greeting} ${name} — what's on your plate today?`;
   }
   const goalLines = goals.map((g) => `- ${g.title}: ${g.description || ""}`).join("\n");
   const prompt =
     `You are a supportive, technically-minded accountability coach for ${name}. ` +
+    `It is currently the ${greeting.toLowerCase()} for ${name}, so greet them appropriately ` +
+    `(e.g. "${greeting}" rather than always "Morning"). ` +
     `Active goals:\n${goalLines}\n\n` +
-    `Write ONE short, motivating morning check-in question (max 2 sentences), no preamble, just the question.`;
+    `Write ONE short, motivating check-in question (max 2 sentences), no preamble, just the question.`;
   try {
     return await callGemini(prompt);
   } catch (err) {
     console.error("Gemini error (question):", err.message);
-    return `Morning ${name} — what's on your plate today?`;
+    return `${greeting} ${name} — what's on your plate today?`;
   }
 }
 

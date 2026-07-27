@@ -176,7 +176,7 @@ router.get("/checkin", async (req, res) => {
       return res.json({ alreadyCheckedIn: true, log });
     }
 
-    const question = await generateCheckinQuestion(profile.name, goals);
+const question = await generateCheckinQuestion(profile.name, goals, profile.timezone);
     res.json({ alreadyCheckedIn: false, question, goals, logId: log.id });
   } catch (err) {
     console.error(err);
