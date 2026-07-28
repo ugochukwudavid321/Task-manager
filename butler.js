@@ -16,6 +16,12 @@ function today() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+function nextDayStr(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 async function getOrCreateUserProfile(userId, email, preferredName) {
   const users = await sb.get(`users?select=*&id=eq.${userId}`);
   if (users.length) return users[0];
@@ -47,7 +53,6 @@ async function getOrCreateTodayLog(userId) {
 // not a user session token.
 // ==========================================================================
 
-// GET /api/notifications/check-due?secret=YOUR_SECRET
 router.get("/notifications/check-due", async (req, res) => {
   try {
     if (req.query.secret !== process.env.CRON_SECRET) {
@@ -56,9 +61,19 @@ router.get("/notifications/check-due", async (req, res) => {
 
     const todayStr = today();
 
-    const dueTasks = await sb.get(
+    const dueByDate = await sb.get(
       `tasks?select=*,daily_logs(user_id)&completed=eq.false&due_date=lte.${todayStr}&due_date=not.is.null`
     );
+    const dueByScope = await sb.get(
+      `tasks?select=*,daily_logs(user_id)&completed=eq.false&scope=eq.multi_day`
+    );
+
+    const seenIds = new Set();
+    const dueTasks = [...dueByDate, ...dueByScope].filter((t) => {
+      if (seenIds.has(t.id)) return false;
+      seenIds.add(t.id);
+      return true;
+    });
 
     if (!dueTasks.length) {
       return res.json({ ok: true, sent: 0, tasksChecked: 0 });
@@ -121,7 +136,6 @@ router.get("/notifications/check-due", async (req, res) => {
 // ==========================================================================
 router.use(requireAuth);
 
-// GET /api/goals - list active goals
 router.get("/goals", async (req, res) => {
   try {
     const goals = await getActiveGoals(req.userId);
@@ -132,7 +146,6 @@ router.get("/goals", async (req, res) => {
   }
 });
 
-// POST /api/goals  { title, description }
 router.post("/goals", async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -154,7 +167,6 @@ router.post("/goals", async (req, res) => {
   }
 });
 
-// DELETE /api/goals/:id - remove a goal
 router.delete("/goals/:id", async (req, res) => {
   try {
     await sb.delete(`goals?id=eq.${req.params.id}&user_id=eq.${req.userId}`);
@@ -165,7 +177,6 @@ router.delete("/goals/:id", async (req, res) => {
   }
 });
 
-// GET /api/checkin - morning question + today's status
 router.get("/checkin", async (req, res) => {
   try {
     const profile = await getOrCreateUserProfile(req.userId, req.userEmail, req.userName);
@@ -176,7 +187,7 @@ router.get("/checkin", async (req, res) => {
       return res.json({ alreadyCheckedIn: true, log });
     }
 
-const question = await generateCheckinQuestion(profile.name, goals, profile.timezone);
+    const question = await generateCheckinQuestion(profile.name, goals, profile.timezone);
     res.json({ alreadyCheckedIn: false, question, goals, logId: log.id });
   } catch (err) {
     console.error(err);
@@ -184,7 +195,6 @@ const question = await generateCheckinQuestion(profile.name, goals, profile.time
   }
 });
 
-// POST /api/checkin  { responseText }
 router.post("/checkin", async (req, res) => {
   try {
     const { responseText } = req.body;
@@ -203,6 +213,7 @@ router.post("/checkin", async (req, res) => {
         daily_log_id: log.id,
         description: t.description,
         goal_id: t.goal_id || null,
+        scope: t.scope || "today",
         source: "morning_intake",
       }))
     );
@@ -220,19 +231,35 @@ router.post("/checkin", async (req, res) => {
   }
 });
 
-// GET /api/tasks/today
 router.get("/tasks/today", async (req, res) => {
   try {
     const log = await getOrCreateTodayLog(req.userId);
-    const tasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
-    res.json({ log, tasks });
+    const todaysTasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
+
+    const carriedOver = await sb.get(
+      `tasks?select=*,daily_logs(user_id)&completed=eq.false&scope=eq.multi_day`
+    );
+    const persistingTasks = carriedOver.filter(
+      (t) => t.daily_logs?.user_id === req.userId && t.daily_log_id !== log.id
+    );
+
+    const seenIds = new Set(todaysTasks.map((t) => t.id));
+    const merged = [...todaysTasks];
+    for (const t of persistingTasks) {
+      if (!seenIds.has(t.id)) {
+        delete t.daily_logs;
+        merged.push(t);
+        seenIds.add(t.id);
+      }
+    }
+
+    res.json({ log, tasks: merged });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/tasks  { description }
 router.post("/tasks", async (req, res) => {
   try {
     const { description } = req.body;
@@ -249,6 +276,7 @@ router.post("/tasks", async (req, res) => {
       daily_log_id: log.id,
       description: categorized.description || description,
       goal_id: categorized.goal_id || null,
+      scope: categorized.scope || "today",
       source: "added_later",
     });
 
@@ -259,7 +287,6 @@ router.post("/tasks", async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/complete
 router.patch("/tasks/:id/complete", async (req, res) => {
   try {
     const completedAt = new Date().toISOString();
@@ -274,11 +301,30 @@ router.patch("/tasks/:id/complete", async (req, res) => {
   }
 });
 
+router.patch("/tasks/:id/scope", async (req, res) => {
+  try {
+    const { scope } = req.body;
+    if (scope !== "today" && scope !== "multi_day") {
+      return res.status(400).json({ error: "scope must be 'today' or 'multi_day'" });
+    }
+    const updated = await sb.patch(`tasks?id=eq.${req.params.id}`, { scope });
+    res.json({ ok: true, task: updated[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/review  { eveningSummary, moodNote }
+// Stats now credit anything COMPLETED TODAY (by completed_at), not just tasks
+// originally logged today — so finishing a multi-day task on day 3 counts on
+// day 3's review, not lost, and not double-counted on day 1's already-closed review.
 router.post("/review", async (req, res) => {
   try {
     const { eveningSummary, moodNote } = req.body;
     const log = await getOrCreateTodayLog(req.userId);
+    const todayStr = today();
+    const tomorrowStr = nextDayStr(todayStr);
 
     let embedding = null;
     let similarDay = null;
@@ -313,17 +359,42 @@ router.post("/review", async (req, res) => {
       });
     }
 
-    const tasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
-    const completedCount = tasks.filter((t) => t.completed).length;
+    // Tasks originally logged today (whatever their scope)
+    const ownTasks = await sb.get(`tasks?select=*&daily_log_id=eq.${log.id}`);
 
-    res.json({ ok: true, completedCount, totalCount: tasks.length, similarDay });
+    // Multi-day tasks logged on OTHER days that are still relevant to today:
+    // either still open (so they count toward the denominator as pending),
+    // or completed exactly today (so today gets credit for finishing them).
+    const carriedOverOpen = await sb.get(
+      `tasks?select=*,daily_logs(user_id)&completed=eq.false&scope=eq.multi_day`
+    );
+    const carriedOverDoneToday = await sb.get(
+      `tasks?select=*,daily_logs(user_id)&completed=eq.true&scope=eq.multi_day&completed_at=gte.${todayStr}T00:00:00.000Z&completed_at=lt.${tomorrowStr}T00:00:00.000Z`
+    );
+
+    const relevantCarriedOver = [...carriedOverOpen, ...carriedOverDoneToday].filter(
+      (t) => t.daily_logs?.user_id === req.userId && t.daily_log_id !== log.id
+    );
+
+    const seenIds = new Set(ownTasks.map((t) => t.id));
+    const tasksForToday = [...ownTasks];
+    for (const t of relevantCarriedOver) {
+      if (!seenIds.has(t.id)) {
+        delete t.daily_logs;
+        tasksForToday.push(t);
+        seenIds.add(t.id);
+      }
+    }
+
+    const completedCount = tasksForToday.filter((t) => t.completed).length;
+
+    res.json({ ok: true, completedCount, totalCount: tasksForToday.length, similarDay });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/push/subscribe  { subscription }
 router.post("/push/subscribe", async (req, res) => {
   try {
     const { subscription } = req.body;

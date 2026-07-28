@@ -34,8 +34,6 @@ async function getEmbedding(text) {
   return data.embedding.values;
 }
 
-// Get a time-of-day greeting word, respecting the user's own timezone rather
-// than the server's. Falls back to UTC if the timezone string is invalid.
 function getTimeOfDayGreeting(timezone) {
   let hour;
   try {
@@ -58,8 +56,6 @@ function getTimeOfDayGreeting(timezone) {
   return "Evening";
 }
 
-// Ask Gemini for a short motivating check-in question, tied to active goals
-// and the actual time of day for the user.
 async function generateCheckinQuestion(name, goals, timezone) {
   const greeting = getTimeOfDayGreeting(timezone);
 
@@ -81,7 +77,10 @@ async function generateCheckinQuestion(name, goals, timezone) {
   }
 }
 
-// Split free text into individual tasks, each matched to the single best-fit goal id (or null).
+// Split free text into individual tasks, each matched to the single best-fit goal id (or null),
+// and tagged with a "scope": "today" for quick same-day items, or "multi_day" for anything that
+// reasonably takes longer than a single day / is ongoing. This piggybacks on the SAME Gemini
+// call already used for splitting/rephrasing — no extra API request, no extra token cost.
 async function parseTasksWithGoals(rawText, goals) {
   const goalList = goals.length
     ? goals.map((g) => `- id="${g.id}" title="${g.title}"`).join("\n")
@@ -95,33 +94,39 @@ async function parseTasksWithGoals(rawText, goals) {
     `Fix grammar, remove filler words, and make each task read like a clean to-do item ` +
     `(e.g. "wash prep for church train read" might become "Prepare laundry for church" and "Read for training"). ` +
     `Then, for each task, pick the SINGLE closest-matching goal id from the list above, ` +
-    `or null if it doesn't clearly relate to any goal.\n\n` +
+    `or null if it doesn't clearly relate to any goal. ` +
+    `Also tag each task with a "scope": use "today" for something that can reasonably be finished ` +
+    `within the same day, or "multi_day" for anything that clearly spans more than one day or is an ` +
+    `ongoing effort (e.g. "write project proposal" over several days, "study for finals this week").\n\n` +
     `Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:\n` +
-    `[{"description": "...", "goal_id": "..."}, {"description": "...", "goal_id": null}]`;
+    `[{"description": "...", "goal_id": "...", "scope": "today"}, {"description": "...", "goal_id": null, "scope": "multi_day"}]`;
 
   try {
     const raw = await callGemini(prompt);
     const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
     const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed) && parsed.length) return parsed;
+    if (Array.isArray(parsed) && parsed.length) {
+      // Guard against missing/invalid scope values from the model
+      return parsed.map((t) => ({
+        ...t,
+        scope: t.scope === "multi_day" ? "multi_day" : "today",
+      }));
+    }
     throw new Error("Empty or invalid parse result");
   } catch (err) {
     console.error("Gemini error (categorize):", err.message);
-    // Fallback: naive split on line breaks / periods / commas, so a bad
-    // Gemini response doesn't dump the entire raw text as one giant task.
     const fallbackTasks = rawText
       .split(/[\n.,]+/)
       .map((t) => t.trim())
       .filter(Boolean)
-      .map((description) => ({ description, goal_id: null }));
-    return fallbackTasks.length ? fallbackTasks : [{ description: rawText, goal_id: null }];
+      .map((description) => ({ description, goal_id: null, scope: "today" }));
+    return fallbackTasks.length ? fallbackTasks : [{ description: rawText, goal_id: null, scope: "today" }];
   }
 }
 
-// Categorize a single ad-hoc task (used by the "add task anytime" endpoint).
 async function categorizeSingleTask(description, goals) {
   const [result] = await parseTasksWithGoals(description, goals);
-  return result || { description, goal_id: null };
+  return result || { description, goal_id: null, scope: "today" };
 }
 
 function cosineSimilarity(a, b) {
