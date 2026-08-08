@@ -43,7 +43,7 @@
         h1, h2, h3 { font-family: var(--font-serif); font-weight: normal; color: var(--ink-navy); }
         header {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--ink-navy);
             position: relative;
@@ -56,6 +56,49 @@
             color: var(--ink-light);
             letter-spacing: 0.5px;
         }
+
+        /* --- Header menu (dark mode + sign out) --- */
+        .menu-btn {
+            position: absolute;
+            top: -0.25rem;
+            right: 0;
+            background: none;
+            border: none;
+            color: var(--ink-navy);
+            font-size: 1.7rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+        }
+        .menu-btn:active { opacity: 0.6; }
+        .app-menu {
+            position: absolute;
+            top: 2.3rem;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 2px 2px 0px rgba(27, 38, 59, 0.15);
+            min-width: 170px;
+            z-index: 400;
+            display: none;
+            flex-direction: column;
+            text-align: left;
+        }
+        .app-menu.open { display: flex; }
+        .app-menu-item {
+            background: none;
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            padding: 0.8rem 1rem;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            color: var(--ink-navy);
+            cursor: pointer;
+        }
+        .app-menu-item:last-child { border-bottom: none; }
+        .app-menu-item:active { background-color: var(--paper-bg); }
+
         .theme-toggle-row {
             text-align: center;
             margin-bottom: 2rem;
@@ -301,13 +344,14 @@
     <div id="app-container" style="display:none;">
 
         <header>
+            <button class="menu-btn" id="menu-btn" onclick="toggleMenu()" aria-label="Menu">⋮</button>
+            <div class="app-menu" id="app-menu">
+                <button class="app-menu-item" onclick="toggleTheme()" id="menu-theme-btn">🌙 Dark mode</button>
+                <button class="app-menu-item" onclick="handleLogout()">Sign Out</button>
+            </div>
             <h1>ACORN</h1>
             <div class="date-display" id="date-display">Loading date...</div>
         </header>
-
-        <div class="theme-toggle-row">
-            <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-toggle-btn-app">🌙 Dark mode</button>
-        </div>
 
         <!-- Morning Check-in Card -->
         <section class="card" id="checkin-card">
@@ -361,7 +405,6 @@
             </div>
         </section>
 
-        <button class="btn btn-outline btn-small" onclick="handleLogout()" style="display:block;margin:0 auto 1rem auto;">Sign Out</button>
         <footer class="app-footer">Made by impulse</footer>
 
     </div><!-- /#app-container -->
@@ -407,9 +450,9 @@
             document.documentElement.setAttribute('data-theme', theme);
             const label = theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
             const authBtn = document.getElementById('theme-toggle-btn-auth');
-            const appBtn = document.getElementById('theme-toggle-btn-app');
+            const menuBtn = document.getElementById('menu-theme-btn');
             if (authBtn) authBtn.textContent = label;
-            if (appBtn) appBtn.textContent = label;
+            if (menuBtn) menuBtn.textContent = label;
         }
 
         function initTheme() {
@@ -427,7 +470,27 @@
             const next = current === 'dark' ? 'light' : 'dark';
             localStorage.setItem(THEME_KEY, next);
             applyTheme(next);
+            closeMenu();
         }
+
+        // --- HEADER MENU (dark mode + sign out) ---
+        function toggleMenu() {
+            document.getElementById('app-menu').classList.toggle('open');
+        }
+
+        function closeMenu() {
+            const menu = document.getElementById('app-menu');
+            if (menu) menu.classList.remove('open');
+        }
+
+        document.addEventListener('click', function (e) {
+            const menu = document.getElementById('app-menu');
+            const btn = document.getElementById('menu-btn');
+            if (!menu || !btn) return;
+            if (menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) {
+                closeMenu();
+            }
+        });
 
         // --- UTILITIES ---
         function setDisplayDate() {
@@ -556,6 +619,7 @@
         }
 
         async function handleLogout() {
+            closeMenu();
             await supabaseClient.auth.signOut();
             currentSession = null;
             document.getElementById('app-container').style.display = 'none';
