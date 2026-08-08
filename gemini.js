@@ -56,8 +56,31 @@ function getTimeOfDayGreeting(timezone) {
   return "Evening";
 }
 
+// Shapes HOW the question is written, not just which greeting word is used.
+// A 3am "great job crushing your goals!!" reads as tone-deaf — this keeps
+// late-night check-ins quiet, and reserves the higher-energy language for
+// actual morning check-ins.
+function toneForGreeting(greeting) {
+  switch (greeting) {
+    case "Late night":
+      return (
+        "Keep the tone quiet, gentle, and low-key — this is a late-night or very-early-morning " +
+        "check-in, not a hype moment. Avoid exclamation points and big motivational language. " +
+        "A calm, low-pressure question is better than an energetic one right now."
+      );
+    case "Morning":
+      return "Keep the tone warm, energetic, and forward-looking — this is the start of the day.";
+    case "Afternoon":
+      return "Keep the tone practical and grounded — a mid-day nudge, not a big pep talk.";
+    case "Evening":
+    default:
+      return "Keep the tone reflective and calm — this is closer to the end of the day.";
+  }
+}
+
 async function generateCheckinQuestion(name, goals, timezone) {
   const greeting = getTimeOfDayGreeting(timezone);
+  const tone = toneForGreeting(greeting);
 
   if (!goals.length) {
     return `${greeting} ${name} — what's on your plate today?`;
@@ -66,7 +89,7 @@ async function generateCheckinQuestion(name, goals, timezone) {
   const prompt =
     `You are a supportive, technically-minded accountability coach for ${name}. ` +
     `It is currently the ${greeting.toLowerCase()} for ${name}, so greet them appropriately ` +
-    `(e.g. "${greeting}" rather than always "Morning"). ` +
+    `(e.g. "${greeting}" rather than always "Morning"). ${tone} ` +
     `Active goals:\n${goalLines}\n\n` +
     `Write ONE short, motivating check-in question (max 2 sentences), no preamble, just the question.`;
   try {

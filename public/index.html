@@ -18,6 +18,17 @@
             --font-sans: 'Helvetica Neue', 'Arial', sans-serif;
             --font-mono: 'Courier New', 'Courier', monospace;
         }
+        /* --- Dark theme (ledger-at-night) --- */
+        [data-theme="dark"] {
+            --paper-bg: #12161f;
+            --card-bg: #1a2130;
+            --ink-navy: #e8e6df;
+            --ink-light: #9fabc0;
+            --stamp-amber: #e3a94a;
+            --stamp-green: #8fd7a0;
+            --border-color: #2c3345;
+            --error-red: #ff8a8c;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: var(--paper-bg);
@@ -27,13 +38,15 @@
             padding: 1.5rem 1rem 3rem 1rem;
             max-width: 600px;
             margin: 0 auto;
+            transition: background-color 0.2s, color 0.2s;
         }
         h1, h2, h3 { font-family: var(--font-serif); font-weight: normal; color: var(--ink-navy); }
         header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.5rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--ink-navy);
+            position: relative;
         }
         header h1 { font-size: 2.5rem; letter-spacing: 1px; margin-bottom: 0.25rem; }
         .date-display {
@@ -43,6 +56,23 @@
             color: var(--ink-light);
             letter-spacing: 0.5px;
         }
+        .theme-toggle-row {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .theme-toggle-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--ink-light);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 0.3rem 0.7rem;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .theme-toggle-btn:active { opacity: 0.7; }
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -262,6 +292,9 @@
             <div class="error-msg" id="auth-error"></div>
             <div class="info-msg" id="auth-info" style="display:none;text-align:center;margin-top:1rem;"></div>
         </div>
+        <div class="theme-toggle-row">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-toggle-btn-auth">🌙 Dark mode</button>
+        </div>
     </div>
 
     <!-- Main App (hidden until signed in) -->
@@ -271,6 +304,10 @@
             <h1>ACORN</h1>
             <div class="date-display" id="date-display">Loading date...</div>
         </header>
+
+        <div class="theme-toggle-row">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-toggle-btn-app">🌙 Dark mode</button>
+        </div>
 
         <!-- Morning Check-in Card -->
         <section class="card" id="checkin-card">
@@ -363,6 +400,35 @@
         let globalGoals = [];
         let todayTasks = [];
 
+        // --- THEME (dark mode) ---
+        const THEME_KEY = 'acorn_theme';
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const label = theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
+            const authBtn = document.getElementById('theme-toggle-btn-auth');
+            const appBtn = document.getElementById('theme-toggle-btn-app');
+            if (authBtn) authBtn.textContent = label;
+            if (appBtn) appBtn.textContent = label;
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark' || saved === 'light') {
+                applyTheme(saved);
+                return;
+            }
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(prefersDark ? 'dark' : 'light');
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem(THEME_KEY, next);
+            applyTheme(next);
+        }
+
         // --- UTILITIES ---
         function setDisplayDate() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -370,13 +436,18 @@
             document.getElementById('date-display').textContent = today;
         }
 
-        // Sets the check-in card header to match the current time of day,
-        // mirroring the same logic the backend greeting question already uses.
+        // Sets the check-in card header to match the current time of day.
+        // Buckets mirror the backend's getTimeOfDayGreeting() exactly, so the
+        // card title and the AI-generated greeting inside never disagree —
+        // including treating pre-5am sessions as "Late Night" rather than
+        // lumping them into "Morning".
         function setCheckinCardTitle() {
             const hour = new Date().getHours();
             let label = "Morning Check-in";
-            if (hour >= 12 && hour < 17) label = "Afternoon Check-in";
-            else if (hour >= 17) label = "Evening Check-in";
+            if (hour < 5) label = "Late Night Check-in";
+            else if (hour < 12) label = "Morning Check-in";
+            else if (hour < 17) label = "Afternoon Check-in";
+            else label = "Evening Check-in";
             document.getElementById('checkin-card-title').textContent = label;
         }
 
@@ -542,7 +613,7 @@
             if (!container) return;
 
             if (globalGoals.length === 0) {
-                container.innerHTML = `<p class="info-msg">No active goals yet.</p>`;
+                container.innerHTML = `<p class="info-msg">No active goals yet. Add one below — Butler uses your goals to sort tasks and shape your daily check-in questions.</p>`;
                 return;
             }
 
@@ -877,6 +948,7 @@
         }
 
         // Boot up!
+        initTheme();
         document.addEventListener('DOMContentLoaded', checkExistingSession);
     </script>
 </body>
