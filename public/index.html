@@ -274,7 +274,7 @@
 
         <!-- Morning Check-in Card -->
         <section class="card" id="checkin-card">
-            <h2 class="card-header">Morning Check-in</h2>
+            <h2 class="card-header" id="checkin-card-title">Morning Check-in</h2>
             <div id="checkin-content">
                 <p class="info-msg">Fetching your daily briefing...</p>
             </div>
@@ -368,6 +368,16 @@
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const today = new Date().toLocaleDateString('en-US', options).toUpperCase();
             document.getElementById('date-display').textContent = today;
+        }
+
+        // Sets the check-in card header to match the current time of day,
+        // mirroring the same logic the backend greeting question already uses.
+        function setCheckinCardTitle() {
+            const hour = new Date().getHours();
+            let label = "Morning Check-in";
+            if (hour >= 12 && hour < 17) label = "Afternoon Check-in";
+            else if (hour >= 17) label = "Evening Check-in";
+            document.getElementById('checkin-card-title').textContent = label;
         }
 
         function showError(elementId, message) {
@@ -501,6 +511,7 @@
         // --- INITIALIZATION & FETCHES ---
         async function initApp() {
             setDisplayDate();
+            setCheckinCardTitle();
             await fetchGoals();
             await Promise.all([
                 fetchCheckinStatus(),
